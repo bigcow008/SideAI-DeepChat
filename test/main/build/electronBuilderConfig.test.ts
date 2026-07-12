@@ -44,10 +44,17 @@ describe('electron-builder config', () => {
         '**/node_modules/@ff-labs/fff-bin-*/**/*',
         '**/node_modules/opendal/**/*',
         '**/node_modules/@opendal/**/*',
+        '**/node_modules/get-windows/**/*',
         '**/node_modules/ffi-rs/**/*',
         '**/node_modules/@yuuang/ffi-rs-*/**/*'
       ])
     )
+  })
+
+  it('declares get-windows as the single packaged window discovery dependency', async () => {
+    const packageJson = await readPackageJson()
+
+    expect(packageJson.dependencies?.['get-windows']).toBeTruthy()
   })
 
   it('pins OpenDAL native packages to the Ubuntu 22.04 compatible ABI version', async () => {

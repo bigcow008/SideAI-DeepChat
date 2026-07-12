@@ -17,10 +17,10 @@
 
 ## Task 2：权限、get-windows 与打包
 
-- [ ] 先写权限 TTL、显式刷新、系统设置导航和撤销降级失败测试。
-- [ ] 实现 macOS permission service；缺失权限时 WindowContextService 输出 `unavailable`，不读取旧目标。
-- [ ] 先写 GetWindowsAdapter 失败测试，再封装 `get-windows`，确保 renderer/Agent 不直接导入其类型。
-- [ ] 在 `electron-builder.yml` `asarUnpack` 增加 `**/node_modules/get-windows/**/*`，更新构建配置测试。
+- [x] 先写权限 TTL、显式刷新、系统设置导航和撤销降级失败测试。
+- [ ] 实现 macOS permission service；service 已完成，缺失权限时 WindowContextService 输出 `unavailable` 的编排留在 Task 3。
+- [x] 先写 GetWindowsAdapter 失败测试，再封装 `get-windows`，确保 renderer/Agent 不直接导入其类型。
+- [x] 在 `electron-builder.yml` `asarUnpack` 增加 `**/node_modules/get-windows/**/*`，更新构建配置测试。
 
 ## Task 3：Presenter 与同一 BrowserWindow
 

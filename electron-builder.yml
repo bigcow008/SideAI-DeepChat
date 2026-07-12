@@ -34,6 +34,7 @@ asarUnpack:
   - '**/node_modules/@ff-labs/fff-bin-*/**/*'
   - '**/node_modules/opendal/**/*'
   - '**/node_modules/@opendal/**/*'
+  - '**/node_modules/get-windows/**/*'
   - '**/node_modules/ffi-rs/**/*'
   - '**/node_modules/@yuuang/ffi-rs-*/**/*'
   - '**/node_modules/@parcel/watcher/**/*'
