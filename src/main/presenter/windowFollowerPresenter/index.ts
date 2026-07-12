@@ -1,6 +1,10 @@
-import type { Bounds, WindowFollowerMode } from '@shared/windowFollower'
-import { calculatePanelBoundsForDisplay } from '@/windowFollower/core/panelBounds'
+import type { Bounds, WindowFollowerDebugDto, WindowFollowerMode } from '@shared/windowFollower'
+import {
+  calculatePanelBoundsForDisplay,
+  type PanelBoundsResult
+} from '@/windowFollower/core/panelBounds'
 import type { WindowContextRefreshResult } from '@/windowFollower/windowContextService'
+import { decidePanelMousePassthrough } from '@/windowFollower/core/panelMousePassthrough'
 
 type DisplayLike = {
   bounds: Bounds
@@ -27,6 +31,7 @@ type WindowFollowerPresenterDependencies = {
   refreshContext?: (forcePermissions?: boolean) => Promise<WindowContextRefreshResult>
   suspendWindowStateTracking?: () => void
   resumeWindowStateTracking?: () => void
+  onStateChanged?: (state: WindowFollowerDebugDto) => void
 }
 
 const FOLLOW_POLL_INTERVAL_MS = 80
@@ -40,6 +45,11 @@ export class WindowFollowerPresenter {
   #pollTimer: ReturnType<typeof setInterval> | null = null
   #refreshInFlight: Promise<void> | null = null
   #waitForExternalActivation = false
+  #lastRefreshResult: WindowContextRefreshResult | null = null
+  #lastPanelResult: PanelBoundsResult | null = null
+  #contentPointerInteractive = false
+  #lastPublishedSignature: string | null = null
+  #updatedAt = 0
 
   constructor(private readonly dependencies: WindowFollowerPresenterDependencies) {}
 
@@ -72,6 +82,34 @@ export class WindowFollowerPresenter {
     return this.#refreshInFlight
   }
 
+  getDebugState(): WindowFollowerDebugDto {
+    const window = this.resolveWindow()
+    return {
+      mode: this.#mode,
+      snapshot: this.#lastRefreshResult?.snapshot ?? null,
+      permissions: this.#lastRefreshResult?.permissions ?? {
+        platform: 'unknown',
+        accessibility: 'unknown',
+        screenRecording: 'unknown',
+        checkedAt: 0
+      },
+      panelBounds: this.#mode === 'normal' || !window ? null : window.getBounds(),
+      displayBounds: this.dependencies.getAllDisplays().map((display) => ({ ...display.bounds })),
+      placement: this.#lastPanelResult?.placement ?? null,
+      contentOffsetX: this.#lastPanelResult?.contentOffsetX ?? 0,
+      lastError: this.#lastRefreshResult?.lastError ?? null,
+      updatedAt: this.#updatedAt
+    }
+  }
+
+  setMode(mode: WindowFollowerMode): boolean {
+    if (mode === 'normal') return this.returnToNormal(true)
+    if (mode === 'fixed') return this.setFixed(true)
+    if (mode === 'detached') return this.setDetached(true)
+    void this.refresh(true)
+    return true
+  }
+
   followTarget(targetBounds: Bounds): boolean {
     const window = this.resolveWindow()
     if (!window) return false
@@ -86,6 +124,7 @@ export class WindowFollowerPresenter {
     this.applyFollowBounds(window)
     window.setAlwaysOnTop(true)
     window.showInactive()
+    this.publishStateIfChanged()
     return true
   }
 
@@ -103,6 +142,7 @@ export class WindowFollowerPresenter {
     this.dependencies.resumeWindowStateTracking?.()
     window.show()
     if (shouldFocus) window.focus()
+    this.publishStateIfChanged()
     return true
   }
 
@@ -117,6 +157,7 @@ export class WindowFollowerPresenter {
     this.#mode = 'fixed'
     window.setAlwaysOnTop(true)
     window.setIgnoreMouseEvents(false)
+    this.publishStateIfChanged()
     return true
   }
 
@@ -131,6 +172,7 @@ export class WindowFollowerPresenter {
     this.#mode = 'detached'
     window.setAlwaysOnTop(false)
     window.setIgnoreMouseEvents(false)
+    this.publishStateIfChanged()
     return true
   }
 
@@ -142,6 +184,7 @@ export class WindowFollowerPresenter {
     if (this.#mode === 'following' && this.#lastTargetBounds) {
       this.applyFollowBounds(window)
     }
+    this.publishStateIfChanged()
     return true
   }
 
@@ -152,6 +195,16 @@ export class WindowFollowerPresenter {
     if (window && this.#mode === 'following' && this.#lastTargetBounds) {
       this.applyFollowBounds(window)
     }
+    this.publishStateIfChanged()
+    return true
+  }
+
+  setContentPointerInteractive(interactive: boolean): boolean {
+    this.#contentPointerInteractive = interactive
+    const window = this.resolveWindow()
+    if (!window) return false
+    this.applyMousePassthrough(window)
+    this.publishStateIfChanged()
     return true
   }
 
@@ -171,25 +224,43 @@ export class WindowFollowerPresenter {
       panelWidth: this.#panelWidth,
       constrainWindowToVisibleReserve: true
     })
+    this.#lastPanelResult = result
     window.setBounds(result.bounds)
-    window.setIgnoreMouseEvents(false)
+    this.applyMousePassthrough(window)
+  }
+
+  private applyMousePassthrough(window: BrowserWindowLike) {
+    const decision = decidePanelMousePassthrough({
+      hasTransparentReserve: (this.#lastPanelResult?.contentOffsetX ?? 0) > 0,
+      contentPointerInteractive: this.#contentPointerInteractive
+    })
+    window.setIgnoreMouseEvents(
+      decision.ignoreMouseEvents,
+      decision.forward ? { forward: true } : undefined
+    )
   }
 
   private async runRefresh(forcePermissions: boolean) {
     const result = await this.dependencies.refreshContext!(forcePermissions)
+    this.#lastRefreshResult = result
     if (!result.automaticAdhesionAvailable) {
       if (this.#mode === 'following') this.returnToNormal(false)
+      this.publishStateIfChanged()
       return
     }
 
     const snapshot = result.snapshot
-    if (!snapshot) return
+    if (!snapshot) {
+      this.publishStateIfChanged()
+      return
+    }
 
     if (snapshot.source === 'active') {
       this.#waitForExternalActivation = false
       if (this.#mode === 'normal' || this.#mode === 'following') {
         this.followTarget(snapshot.window.bounds)
       }
+      this.publishStateIfChanged()
       return
     }
 
@@ -200,5 +271,16 @@ export class WindowFollowerPresenter {
     ) {
       this.followTarget(snapshot.window.bounds)
     }
+    this.publishStateIfChanged()
+  }
+
+  private publishStateIfChanged() {
+    if (!this.dependencies.onStateChanged) return
+    const state = this.getDebugState()
+    const signature = JSON.stringify({ ...state, updatedAt: 0 })
+    if (signature === this.#lastPublishedSignature) return
+    this.#lastPublishedSignature = signature
+    this.#updatedAt = Date.now()
+    this.dependencies.onStateChanged({ ...state, updatedAt: this.#updatedAt })
   }
 }

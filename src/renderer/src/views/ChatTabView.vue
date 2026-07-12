@@ -1,5 +1,16 @@
 <template>
   <div class="relative flex h-full min-h-0 w-full flex-row overflow-hidden">
+    <Button
+      v-if="pageRouter.currentRoute !== 'chat' && !windowFollowerDebugStore.isOpen"
+      variant="ghost"
+      size="icon"
+      class="absolute right-4 top-2.5 z-[var(--dc-z-sticky)] h-7 w-7 text-muted-foreground hover:text-foreground"
+      :title="t('settings.deepchatAgents.debug.entry')"
+      :aria-label="t('settings.deepchatAgents.debug.entry')"
+      @click="windowFollowerDebugStore.open"
+    >
+      <Icon icon="lucide:bug" class="h-4 w-4" />
+    </Button>
     <div
       class="relative flex h-full min-h-0 min-w-0 w-0 flex-1 transition-[width] duration-[var(--dc-motion-default)] ease-[var(--dc-ease-out-express)]"
     >
@@ -37,11 +48,17 @@
       :session-id="pageRouter.currentRoute === 'chat' ? pageRouter.chatSessionId : null"
       :workspace-path="sessionStore.activeSession?.projectDir ?? null"
     />
+    <div v-if="windowFollowerDebugStore.isOpen" class="absolute inset-0 z-[var(--dc-z-modal)]">
+      <WindowFollowerDebugView @close="windowFollowerDebugStore.close" />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { Icon } from '@iconify/vue'
+import { Button } from '@shadcn/components/ui/button'
 import { createStartupClient } from '@api/StartupClient'
 import ChatSidePanel from '@/components/sidepanel/ChatSidePanel.vue'
 import NewThreadPage from '@/pages/NewThreadPage.vue'
@@ -55,13 +72,17 @@ import { useModelStore } from '@/stores/modelStore'
 import { useOllamaStore } from '@/stores/ollamaStore'
 import { useStartupWorkloadStore } from '@/stores/startupWorkloadStore'
 import { markStartupInteractive, scheduleStartupDeferredTask } from '@/lib/startupDeferred'
+import WindowFollowerDebugView from '@/components/windowFollower/WindowFollowerDebugView.vue'
+import { useWindowFollowerDebugStore } from '@/stores/windowFollowerDebug'
 
 const pageRouter = usePageRouterStore()
+const { t } = useI18n()
 const sessionStore = useSessionStore()
 const agentStore = useAgentStore()
 const projectStore = useProjectStore()
 const modelStore = useModelStore()
 const ollamaStore = useOllamaStore()
+const windowFollowerDebugStore = useWindowFollowerDebugStore()
 let startupWorkloadStore: ReturnType<typeof useStartupWorkloadStore> | null = null
 
 try {

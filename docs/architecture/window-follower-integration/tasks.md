@@ -31,10 +31,10 @@
 
 ## Task 4：typed route/event/client 与调试页
 
-- [ ] 先为每个 route/event 写 schema 失败测试，覆盖未知字段拒绝和事件 envelope。
-- [ ] 注册 `windowFollower.routes.ts` 与 `windowFollower.events.ts`，从主路由 runtime 提供读取、模式、权限、重新读取和调试复制接口。
-- [ ] 新增 `WindowFollowerClient.ts`，renderer 禁止裸 IPC。
-- [ ] 新增调试页和贴边顶部入口；验证切换目标实时更新、返回聊天保留会话/草稿、复制不发给 AI。
+- [x] 先为每个 route/event 写 schema 失败测试，覆盖未知字段拒绝和 event catalog 注册。
+- [x] 注册 `windowFollower.routes.ts` 与 `windowFollower.events.ts`，从主路由 runtime 提供读取、模式、权限、重新读取和本地调试接口。
+- [x] 新增 `WindowFollowerClient.ts`，renderer 禁止裸 IPC。
+- [x] 新增调试覆盖层和永久 Bug 入口；typed event 实时更新，返回聊天保留已挂载会话/草稿，复制只写本地剪贴板不发给 AI。
 
 ## Task 5：发送前上下文门禁
 

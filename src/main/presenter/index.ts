@@ -91,6 +91,7 @@ import {
   publishDeepchatEvent,
   setDeepchatEventWindowPresenter
 } from '@/routes/publishDeepchatEvent'
+import { windowFollowerStateChangedEvent } from '@shared/contracts/events'
 import { StartupWorkloadCoordinator } from './startupWorkloadCoordinator'
 import type { StartupWorkloadTaskContext } from './startupWorkloadCoordinator'
 import { WindowFollowerPresenter } from './windowFollowerPresenter'
@@ -220,7 +221,8 @@ export class Presenter implements IPresenter {
       getAllDisplays: () => screen.getAllDisplays(),
       refreshContext: (forcePermissions) => windowContextService.refresh(forcePermissions),
       suspendWindowStateTracking: () => windowPresenter.suspendPrimaryWindowStateTracking(),
-      resumeWindowStateTracking: () => windowPresenter.resumePrimaryWindowStateTracking()
+      resumeWindowStateTracking: () => windowPresenter.resumePrimaryWindowStateTracking(),
+      onStateChanged: (state) => publishDeepchatEvent(windowFollowerStateChangedEvent.name, state)
     })
     this.tabPresenter = new TabPresenter(this.windowPresenter)
     this.llmproviderPresenter = new LLMProviderPresenter(
@@ -1106,7 +1108,9 @@ const buildMainKernelRouteRuntime = () =>
     pluginPresenter: presenter.pluginPresenter,
     databaseSecurityPresenter: presenter.databaseSecurityPresenter,
     memoryPresenter: presenter.memoryPresenter,
-    cronJobs: presenter.cronJobs
+    cronJobs: presenter.cronJobs,
+    windowFollowerPresenter: presenter.windowFollowerPresenter,
+    desktopPermissionService: presenter.desktopPermissionService
   })
 
 export function getMainKernelRouteRuntime(): ReturnType<typeof createMainKernelRouteRuntime> {

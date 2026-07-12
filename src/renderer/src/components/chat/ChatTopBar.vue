@@ -108,6 +108,17 @@
       <Button
         variant="ghost"
         size="icon"
+        data-testid="window-follower-debug-button"
+        class="h-7 w-7 text-muted-foreground hover:text-foreground"
+        :title="t('settings.deepchatAgents.debug.entry')"
+        :aria-label="t('settings.deepchatAgents.debug.entry')"
+        @click="windowFollowerDebugStore.open"
+      >
+        <Icon icon="lucide:bug" class="h-4 w-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
         class="h-7 w-7 text-muted-foreground hover:text-foreground"
         :title="t('chat.workspace.title')"
         @click="sidepanelStore.toggleWorkspace(props.sessionId)"
@@ -253,6 +264,7 @@ import { useSessionStore } from '@/stores/ui/session'
 import { useSidepanelStore } from '@/stores/ui/sidepanel'
 import { useSidebarStore } from '@/stores/ui/sidebar'
 import { useToast } from '@/components/use-toast'
+import { useWindowFollowerDebugStore } from '@/stores/windowFollowerDebug'
 
 defineOptions({
   inheritAttrs: false
@@ -272,6 +284,7 @@ const agentStore = useAgentStore()
 const sidepanelStore = useSidepanelStore()
 const sidebarStore = useSidebarStore()
 const { toast } = useToast()
+const windowFollowerDebugStore = useWindowFollowerDebugStore()
 
 const isRenaming = ref(false)
 const clearDialogOpen = ref(false)

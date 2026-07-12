@@ -166,4 +166,34 @@ describe('WindowFollowerPresenter', () => {
     expect(presenter.mode).toBe('normal')
     expect(window.setAlwaysOnTop).toHaveBeenLastCalledWith(false)
   })
+
+  it('publishes typed debug state only when observable state changes', async () => {
+    const window = createWindow()
+    const result = {
+      permissions: {
+        platform: 'macos' as const,
+        accessibility: 'granted' as const,
+        screenRecording: 'granted' as const,
+        checkedAt: 1_000
+      },
+      canReadWindowContext: true,
+      automaticAdhesionAvailable: false,
+      snapshot: null,
+      lastError: null
+    }
+    const onStateChanged = vi.fn()
+    const presenter = new WindowFollowerPresenter({
+      getWindow: () => window,
+      getDisplayMatching: () => primary,
+      getAllDisplays: () => [primary],
+      refreshContext: vi.fn(async () => result),
+      onStateChanged
+    })
+
+    await presenter.refresh()
+    await presenter.refresh()
+
+    expect(onStateChanged).toHaveBeenCalledOnce()
+    expect(onStateChanged).toHaveBeenCalledWith(expect.objectContaining({ mode: 'normal' }))
+  })
 })

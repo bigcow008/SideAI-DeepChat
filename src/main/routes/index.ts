@@ -429,6 +429,12 @@ import type { DeepChatTapeEntryRow } from '@/presenter/sqlitePresenter/tables/de
 import type { SQLitePresenter } from '@/presenter/sqlitePresenter'
 import type { CronJobsService } from '@/presenter/cronJobs'
 import { killTerminal, writeToTerminal } from '@/presenter/configPresenter/acpInitHelper'
+import type { WindowFollowerPresenter } from '@/presenter/windowFollowerPresenter'
+import type { DesktopPermissionService } from '@/windowFollower/desktopPermissionService'
+import {
+  dispatchWindowFollowerRoute,
+  type WindowFollowerRouteRuntime
+} from './windowFollowerRoutes'
 
 const MEMORY_PERSONA_STATES = ['draft', 'active', 'superseded', 'rejected'] as const
 type MemoryPersonaState = (typeof MEMORY_PERSONA_STATES)[number]
@@ -468,6 +474,10 @@ export type MainKernelRouteRuntime = {
   databaseSecurityPresenter: DatabaseSecurityPresenter
   memoryPresenter: MemoryPresenter
   cronJobs: CronJobsService
+  windowFollowerPresenter: WindowFollowerPresenter
+  desktopPermissionService: DesktopPermissionService
+  getAutomaticAdhesion: () => boolean
+  setAutomaticAdhesion: (enabled: boolean) => void
 }
 
 export function formatMemorySourceRecordContent(record: ChatMessageRecord): string {
@@ -740,6 +750,8 @@ export function createMainKernelRouteRuntime(deps: {
   databaseSecurityPresenter: DatabaseSecurityPresenter
   memoryPresenter: MemoryPresenter
   cronJobs: CronJobsService
+  windowFollowerPresenter: WindowFollowerPresenter
+  desktopPermissionService: DesktopPermissionService
 }): MainKernelRouteRuntime {
   const scheduler = createNodeScheduler()
   const hotPathPorts = createPresenterHotPathPorts({
@@ -902,7 +914,13 @@ export function createMainKernelRouteRuntime(deps: {
     pluginPresenter: deps.pluginPresenter,
     databaseSecurityPresenter: deps.databaseSecurityPresenter,
     memoryPresenter: deps.memoryPresenter,
-    cronJobs: deps.cronJobs
+    cronJobs: deps.cronJobs,
+    windowFollowerPresenter: deps.windowFollowerPresenter,
+    desktopPermissionService: deps.desktopPermissionService,
+    getAutomaticAdhesion: () =>
+      deps.configPresenter.getSetting<boolean>('sideai.windowFollower.automaticAdhesion') ?? true,
+    setAutomaticAdhesion: (enabled) =>
+      deps.configPresenter.setSetting('sideai.windowFollower.automaticAdhesion', enabled)
   }
 }
 
@@ -1519,6 +1537,13 @@ export async function dispatchDeepchatRoute(
   if (!hasDeepchatRouteContract(routeName)) {
     throw new Error(`Unknown deepchat route: ${routeName}`)
   }
+
+  const windowFollowerResult = await dispatchWindowFollowerRoute(
+    runtime as WindowFollowerRouteRuntime,
+    routeName,
+    rawInput
+  )
+  if (windowFollowerResult !== undefined) return windowFollowerResult
 
   const configResult = await dispatchConfigRoute(runtime.configPresenter, routeName, rawInput)
   if (configResult !== undefined) {
