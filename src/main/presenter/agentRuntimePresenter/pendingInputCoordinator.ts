@@ -28,7 +28,8 @@ function normalizeInput(input: string | SendMessageInput): SendMessageInput {
     text: typeof input?.text === 'string' ? input.text : '',
     files: Array.isArray(input?.files) ? input.files.filter(Boolean) : [],
     ...(activeSkills.length > 0 ? { activeSkills } : {}),
-    ...(inlineItems.length > 0 ? { inlineItems } : {})
+    ...(inlineItems.length > 0 ? { inlineItems } : {}),
+    ...(input?.windowContext ? { windowContext: input.windowContext } : {})
   }
 }
 

@@ -414,6 +414,38 @@ describe('AgentSessionPresenter', () => {
       )
     })
 
+    it('preserves trusted window context on the first queued message', async () => {
+      const windowContext = {
+        schemaVersion: 1 as const,
+        trackingState: 'following' as const,
+        source: 'active' as const,
+        freshness: 'live' as const,
+        capturedAt: 1,
+        lastVerifiedAt: 1,
+        app: { stableKey: 'bundleId:code', name: 'Code', processId: 42 },
+        window: {
+          windowId: 7,
+          title: 'PRD.md - SideAI',
+          bounds: { x: 0, y: 0, width: 900, height: 700 }
+        },
+        permissions: {
+          platform: 'macos' as const,
+          accessibility: 'granted' as const,
+          screenRecording: 'granted' as const,
+          checkedAt: 1
+        }
+      }
+
+      await presenter.createSession({ agentId: 'deepchat', message: 'Hello', windowContext }, 1)
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      expect(deepChatAgent.queuePendingInput).toHaveBeenCalledWith(
+        'mock-session-id',
+        { text: 'Hello', files: [], windowContext },
+        { source: 'send', projectDir: null }
+      )
+    })
+
     it('passes project directory to queued first messages', async () => {
       const queuePendingInput = vi.fn().mockResolvedValue({
         id: 'q1',
@@ -1140,6 +1172,47 @@ describe('AgentSessionPresenter', () => {
           source: 'send',
           projectDir: '/tmp/workspace'
         }
+      )
+    })
+
+    it('preserves trusted window context when normalizing a send', async () => {
+      sqlitePresenter.newSessionsTable.get.mockReturnValue({
+        id: 's1',
+        agent_id: 'deepchat',
+        title: 'Test',
+        project_dir: '/tmp/workspace',
+        is_pinned: 0,
+        is_draft: 0,
+        created_at: 1000,
+        updated_at: 1000
+      })
+      const windowContext = {
+        schemaVersion: 1 as const,
+        trackingState: 'following' as const,
+        source: 'active' as const,
+        freshness: 'live' as const,
+        capturedAt: 1,
+        lastVerifiedAt: 1,
+        app: { stableKey: 'bundleId:code', name: 'Code', processId: 42 },
+        window: {
+          windowId: 7,
+          title: 'PRD.md - SideAI',
+          bounds: { x: 0, y: 0, width: 900, height: 700 }
+        },
+        permissions: {
+          platform: 'macos' as const,
+          accessibility: 'granted' as const,
+          screenRecording: 'granted' as const,
+          checkedAt: 1
+        }
+      }
+
+      await presenter.sendMessage('s1', { text: 'Review', files: [], windowContext })
+
+      expect(deepChatAgent.queuePendingInput).toHaveBeenCalledWith(
+        's1',
+        { text: 'Review', files: [], windowContext },
+        { source: 'send', projectDir: '/tmp/workspace' }
       )
     })
 

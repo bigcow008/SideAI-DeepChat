@@ -92,6 +92,47 @@ describe('PendingInputCoordinator claimed input ownership', () => {
     )
     expect(store.consumeSteerInput).not.toHaveBeenCalled()
   })
+
+  it('preserves trusted window context before handing input to the store', () => {
+    const windowContext = {
+      schemaVersion: 1 as const,
+      trackingState: 'following' as const,
+      source: 'active' as const,
+      freshness: 'live' as const,
+      capturedAt: 1,
+      lastVerifiedAt: 1,
+      app: { stableKey: 'bundleId:code', name: 'Code', processId: 42 },
+      window: {
+        windowId: 7,
+        title: 'PRD.md - SideAI',
+        bounds: { x: 0, y: 0, width: 900, height: 700 }
+      },
+      permissions: {
+        platform: 'macos' as const,
+        accessibility: 'granted' as const,
+        screenRecording: 'granted' as const,
+        checkedAt: 1
+      }
+    }
+    const record = createRecord('queue-context', 'session-1', 'queue')
+    const store = {
+      countActiveQueue: vi.fn(() => 0),
+      createQueueInputWithState: vi.fn(() => record)
+    }
+    const coordinator = new PendingInputCoordinator(store as any)
+
+    coordinator.queuePendingInput('session-1', {
+      text: 'Review',
+      files: [],
+      windowContext
+    })
+
+    expect(store.createQueueInputWithState).toHaveBeenCalledWith(
+      'session-1',
+      { text: 'Review', files: [], windowContext },
+      'pending'
+    )
+  })
 })
 
 describe('PendingInputCoordinator pending steer recovery', () => {

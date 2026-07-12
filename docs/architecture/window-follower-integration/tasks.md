@@ -6,7 +6,7 @@
 - [x] 已记录官方 baseline 的 3 个 Pinia 装配失败：`SpotlightOverlay.test.ts` 未激活 `useSidebarStore()`。
 - [x] 已记录官方仓库没有 `pnpm-lock.yaml`，安装使用 `--lockfile=false`。
 - [x] 已记录 `prebuild` 刷新三个生成资源文件。
-- [ ] 每项实现先写失败测试并观察失败，再写最小代码。
+- [x] 每项实现先写失败测试并观察失败，再写最小代码。
 
 ## Task 1：纯模块与共享 DTO
 
@@ -38,10 +38,10 @@
 
 ## Task 5：发送前上下文门禁
 
-- [ ] 先写 chat route 测试：发送前权限复检失败时无 metadata，权限完整且自动跟随时捕获不可变快照。
-- [ ] 将可选 `windowContext` 放入 DeepChat 原有发送输入，不改变 `text/files/activeSkills/inlineItems`。
-- [ ] 对固定、脱吸附、普通、排除、stale 超时和 unavailable 清空旧上下文，并验证每条消息使用发送时快照。
-- [ ] 运行 Agent/工具/MCP/CLI/CUA 相关原生测试，确认 route 扩展不改变现有 payload。
+- [x] 先写 chat route 测试：发送前权限复检失败时无 metadata，权限完整且自动跟随时捕获不可变快照。
+- [x] 将可选 `windowContext` 放入 DeepChat 原有发送输入，不改变 `text/files/activeSkills/inlineItems`；首条 `sessions.create` 与后续 `chat.sendMessage` 均在主进程解析后捕获。
+- [x] 对固定、脱吸附、普通、排除、stale 超时和 unavailable 清空旧上下文，并验证每条消息使用发送时快照。
+- [x] 运行 Agent/工具/MCP/CLI/CUA 相关原生测试，确认 route 扩展不改变现有 payload（Task 5 定向回归 402 项通过）。
 
 ## Task 6：验证与交付
 

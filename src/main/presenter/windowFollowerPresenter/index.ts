@@ -1,4 +1,9 @@
-import type { Bounds, WindowFollowerDebugDto, WindowFollowerMode } from '@shared/windowFollower'
+import type {
+  Bounds,
+  WindowContextSnapshot,
+  WindowFollowerDebugDto,
+  WindowFollowerMode
+} from '@shared/windowFollower'
 import {
   calculatePanelBoundsForDisplay,
   type PanelBoundsResult
@@ -36,6 +41,12 @@ type WindowFollowerPresenterDependencies = {
 
 const FOLLOW_POLL_INTERVAL_MS = 80
 
+function deepFreeze<T>(value: T): T {
+  if (typeof value !== 'object' || value === null || Object.isFrozen(value)) return value
+  for (const nested of Object.values(value)) deepFreeze(nested)
+  return Object.freeze(value)
+}
+
 export class WindowFollowerPresenter {
   #mode: WindowFollowerMode = 'normal'
   #normalBounds: Bounds | null = null
@@ -44,6 +55,7 @@ export class WindowFollowerPresenter {
   #panelWidth = 360
   #pollTimer: ReturnType<typeof setInterval> | null = null
   #refreshInFlight: Promise<void> | null = null
+  #refreshInFlightForcesPermissions = false
   #waitForExternalActivation = false
   #lastRefreshResult: WindowContextRefreshResult | null = null
   #lastPanelResult: PanelBoundsResult | null = null
@@ -74,12 +86,47 @@ export class WindowFollowerPresenter {
 
   refresh(forcePermissions = false): Promise<void> {
     if (!this.dependencies.refreshContext) return Promise.resolve()
-    if (!this.#refreshInFlight) {
-      this.#refreshInFlight = this.runRefresh(forcePermissions).finally(() => {
-        this.#refreshInFlight = null
-      })
+    if (this.#refreshInFlight) {
+      if (!forcePermissions || this.#refreshInFlightForcesPermissions) {
+        return this.#refreshInFlight
+      }
+      return this.#refreshInFlight.then(
+        () => this.refresh(true),
+        () => this.refresh(true)
+      )
     }
-    return this.#refreshInFlight
+
+    this.#refreshInFlightForcesPermissions = forcePermissions
+    const refresh = this.runRefresh(forcePermissions).finally(() => {
+      if (this.#refreshInFlight === refresh) {
+        this.#refreshInFlight = null
+        this.#refreshInFlightForcesPermissions = false
+      }
+    })
+    this.#refreshInFlight = refresh
+    return refresh
+  }
+
+  async captureWindowContextForMessage(): Promise<WindowContextSnapshot | null> {
+    const wasFollowing = this.#mode === 'following'
+    try {
+      await this.refresh(true)
+    } catch {
+      return null
+    }
+
+    const result = this.#lastRefreshResult
+    if (
+      !wasFollowing ||
+      this.#mode !== 'following' ||
+      !result?.automaticAdhesionAvailable ||
+      !result.snapshot ||
+      (result.snapshot.freshness !== 'live' && result.snapshot.freshness !== 'retained')
+    ) {
+      return null
+    }
+
+    return deepFreeze(structuredClone(result.snapshot))
   }
 
   getDebugState(): WindowFollowerDebugDto {

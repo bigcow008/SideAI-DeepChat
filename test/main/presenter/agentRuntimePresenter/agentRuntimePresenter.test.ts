@@ -1482,6 +1482,35 @@ describe('AgentRuntimePresenter', () => {
       expect(assistantInsert.content).toBe('[]')
     })
 
+    it('persists trusted window context with the user message', async () => {
+      const windowContext = {
+        schemaVersion: 1 as const,
+        trackingState: 'following' as const,
+        source: 'active' as const,
+        freshness: 'live' as const,
+        capturedAt: 1,
+        lastVerifiedAt: 1,
+        app: { stableKey: 'bundleId:code', name: 'Code', processId: 42 },
+        window: {
+          windowId: 7,
+          title: 'PRD.md - SideAI',
+          bounds: { x: 0, y: 0, width: 900, height: 700 }
+        },
+        permissions: {
+          platform: 'macos' as const,
+          accessibility: 'granted' as const,
+          screenRecording: 'granted' as const,
+          checkedAt: 1
+        }
+      }
+
+      await agent.initSession('s1', { providerId: 'openai', modelId: 'gpt-4' })
+      await agent.processMessage('s1', { text: 'Review', files: [], windowContext })
+
+      const userInsert = sqlitePresenter.deepchatMessagesTable.insert.mock.calls[0][0]
+      expect(JSON.parse(userInsert.content).windowContext).toEqual(windowContext)
+    })
+
     it('rejects blank text-only messages before creating records', async () => {
       await agent.initSession('s1', { providerId: 'openai', modelId: 'gpt-4' })
 

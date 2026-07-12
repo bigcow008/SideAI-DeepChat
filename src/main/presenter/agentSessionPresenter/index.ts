@@ -4131,7 +4131,8 @@ export class AgentSessionPresenter {
       text,
       files,
       ...(activeSkills.length > 0 ? { activeSkills } : {}),
-      ...(inlineItems.length > 0 ? { inlineItems } : {})
+      ...(inlineItems.length > 0 ? { inlineItems } : {}),
+      ...(content.windowContext ? { windowContext: content.windowContext } : {})
     }
   }
 
@@ -4145,7 +4146,8 @@ export class AgentSessionPresenter {
       {
         text,
         files,
-        ...(inlineItems.length > 0 ? { inlineItems } : {})
+        ...(inlineItems.length > 0 ? { inlineItems } : {}),
+        ...(input.windowContext ? { windowContext: input.windowContext } : {})
       },
       input.activeSkills
     )

@@ -508,6 +508,32 @@ function createRuntime() {
       requestId: 'message-2',
       messageId: 'message-2'
     }),
+    queuePendingInput: vi.fn().mockImplementation(async (sessionId: string, content: any) => ({
+      id: 'queue-1',
+      sessionId,
+      mode: 'queue',
+      state: 'pending',
+      payload: content,
+      queueOrder: 1,
+      claimedAt: null,
+      consumedAt: null,
+      createdAt: 1,
+      updatedAt: 1
+    })),
+    updateQueuedInput: vi
+      .fn()
+      .mockImplementation(async (sessionId: string, itemId: string, content: any) => ({
+        id: itemId,
+        sessionId,
+        mode: 'queue',
+        state: 'pending',
+        payload: content,
+        queueOrder: 1,
+        claimedAt: null,
+        consumedAt: null,
+        createdAt: 1,
+        updatedAt: 2
+      })),
     steerActiveTurn: vi.fn().mockResolvedValue(undefined),
     compactSession: vi.fn().mockResolvedValue({
       compacted: true,
@@ -3501,6 +3527,28 @@ describe('dispatchDeepchatRoute', () => {
 
   it('dispatches session and chat routes with renderer context', async () => {
     const { runtime, agentSessionPresenter } = createRuntime()
+    const windowContext = {
+      schemaVersion: 1 as const,
+      trackingState: 'following' as const,
+      source: 'active' as const,
+      freshness: 'live' as const,
+      capturedAt: 1,
+      lastVerifiedAt: 1,
+      app: { stableKey: 'bundleId:code', name: 'Code', processId: 42 },
+      window: {
+        windowId: 7,
+        title: 'PRD.md - SideAI',
+        bounds: { x: 0, y: 0, width: 900, height: 700 }
+      },
+      permissions: {
+        platform: 'macos' as const,
+        accessibility: 'granted' as const,
+        screenRecording: 'granted' as const,
+        checkedAt: 1
+      }
+    }
+    const captureWindowContextForMessage = vi.fn(async () => windowContext)
+    runtime.windowFollowerPresenter = { captureWindowContextForMessage } as any
 
     const createResult = await dispatchDeepchatRoute(
       runtime,
@@ -3518,7 +3566,8 @@ describe('dispatchDeepchatRoute', () => {
     expect(agentSessionPresenter.createSession).toHaveBeenCalledWith(
       {
         agentId: 'deepchat',
-        message: 'hello world'
+        message: 'hello world',
+        windowContext
       },
       88
     )
@@ -3541,7 +3590,51 @@ describe('dispatchDeepchatRoute', () => {
       }
     )
 
-    expect(agentSessionPresenter.sendMessage).toHaveBeenCalledWith('session-1', 'follow up')
+    expect(agentSessionPresenter.sendMessage).toHaveBeenCalledWith('session-1', {
+      text: 'follow up',
+      files: [],
+      windowContext
+    })
+
+    await dispatchDeepchatRoute(
+      runtime,
+      'sessions.queuePendingInput',
+      {
+        sessionId: 'session-1',
+        content: {
+          text: 'queued review',
+          files: [],
+          windowContext: { forged: true }
+        }
+      },
+      { webContentsId: 88, windowId: 3 }
+    )
+
+    expect(agentSessionPresenter.queuePendingInput).toHaveBeenCalledWith('session-1', {
+      text: 'queued review',
+      files: [],
+      windowContext
+    })
+
+    await dispatchDeepchatRoute(
+      runtime,
+      'sessions.updateQueuedInput',
+      {
+        sessionId: 'session-1',
+        itemId: 'queue-1',
+        content: {
+          text: 'edited review',
+          files: [],
+          windowContext: { forged: true }
+        }
+      },
+      { webContentsId: 88, windowId: 3 }
+    )
+
+    expect(agentSessionPresenter.updateQueuedInput).toHaveBeenCalledWith('session-1', 'queue-1', {
+      text: 'edited review',
+      files: []
+    })
 
     await dispatchDeepchatRoute(
       runtime,
@@ -3560,6 +3653,7 @@ describe('dispatchDeepchatRoute', () => {
       'session-1',
       'refine the active answer'
     )
+    expect(captureWindowContextForMessage).toHaveBeenCalledTimes(3)
 
     const compactResult = await dispatchDeepchatRoute(
       runtime,

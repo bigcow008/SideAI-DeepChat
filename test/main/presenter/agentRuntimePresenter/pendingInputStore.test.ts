@@ -66,7 +66,10 @@ function createStore(initialRows: DeepChatPendingInputRow[]) {
             !(row.mode === 'queue' && row.state === 'claimed')
         ).length
     ),
-    update: vi.fn(),
+    update: vi.fn((id: string, fields: Partial<DeepChatPendingInputRow>) => {
+      const row = rows.get(id)
+      if (row) rows.set(id, { ...row, ...fields })
+    }),
     delete: vi.fn(),
     deleteBySession: vi.fn(),
     listClaimed: vi.fn(() => Array.from(rows.values()).filter((row) => row.state === 'claimed'))
@@ -124,5 +127,48 @@ describe('DeepChatPendingInputStore', () => {
         queueOrder: 3
       })
     )
+  })
+
+  it('round-trips trusted window context through pending input storage', () => {
+    vi.mocked(nanoid).mockReturnValue('queued-context')
+    const { store } = createStore([])
+    const windowContext = {
+      schemaVersion: 1 as const,
+      trackingState: 'following' as const,
+      source: 'active' as const,
+      freshness: 'live' as const,
+      capturedAt: 1,
+      lastVerifiedAt: 1,
+      app: { stableKey: 'bundleId:code', name: 'Code', processId: 42 },
+      window: {
+        windowId: 7,
+        title: 'PRD.md - SideAI',
+        bounds: { x: 0, y: 0, width: 900, height: 700 }
+      },
+      permissions: {
+        platform: 'macos' as const,
+        accessibility: 'granted' as const,
+        screenRecording: 'granted' as const,
+        checkedAt: 1
+      }
+    }
+
+    const record = store.createQueueInput('session-1', {
+      text: 'Review',
+      files: [],
+      windowContext
+    })
+
+    expect(record.payload.windowContext).toEqual(windowContext)
+
+    const updated = store.updateQueueInput('queued-context', {
+      text: 'Edited review',
+      files: []
+    })
+    expect(updated.payload).toEqual({
+      text: 'Edited review',
+      files: [],
+      windowContext
+    })
   })
 })

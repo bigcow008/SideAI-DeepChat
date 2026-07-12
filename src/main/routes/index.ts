@@ -401,6 +401,7 @@ import {
 import type { ChatMessageRecord } from '@shared/types/agent-interface'
 import { buildEffectiveTapeView } from '../presenter/agentRuntimePresenter/tapeEffectiveView'
 import { ChatService } from './chat/chatService'
+import { attachWindowContextToMessage, attachWindowContextToSession } from './chat/windowContext'
 import { dispatchConfigRoute } from './config/configRouteHandler'
 import { createPresenterHotPathPorts } from './hotPathPorts'
 import { dispatchModelRoute } from './models/modelRouteHandler'
@@ -2894,7 +2895,11 @@ export async function dispatchDeepchatRoute(
 
     case sessionsCreateRoute.name: {
       const input = sessionsCreateRoute.input.parse(rawInput)
-      const session = await runtime.sessionService.createSession(input, context)
+      const trustedInput = await attachWindowContextToSession(
+        runtime.windowFollowerPresenter,
+        input
+      )
+      const session = await runtime.sessionService.createSession(trustedInput, context)
       return sessionsCreateRoute.output.parse({ session })
     }
 
@@ -2967,9 +2972,13 @@ export async function dispatchDeepchatRoute(
 
     case sessionsQueuePendingInputRoute.name: {
       const input = sessionsQueuePendingInputRoute.input.parse(rawInput)
+      const trustedContent = await attachWindowContextToMessage(
+        runtime.windowFollowerPresenter,
+        input.content
+      )
       const item = await runtime.agentSessionPresenter.queuePendingInput(
         input.sessionId,
-        input.content
+        trustedContent
       )
       return sessionsQueuePendingInputRoute.output.parse({ item })
     }
@@ -4300,8 +4309,12 @@ export async function dispatchDeepchatRoute(
 
     case chatSendMessageRoute.name: {
       const input = chatSendMessageRoute.input.parse(rawInput)
+      const trustedContent = await attachWindowContextToMessage(
+        runtime.windowFollowerPresenter,
+        input.content
+      )
       return chatSendMessageRoute.output.parse(
-        await runtime.chatService.sendMessage(input.sessionId, input.content)
+        await runtime.chatService.sendMessage(input.sessionId, trustedContent)
       )
     }
 

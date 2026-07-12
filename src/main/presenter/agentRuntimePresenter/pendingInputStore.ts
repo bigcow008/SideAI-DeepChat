@@ -29,7 +29,8 @@ function normalizeInput(input: string | SendMessageInput): SendMessageInput {
     text: typeof input?.text === 'string' ? input.text : '',
     files: Array.isArray(input?.files) ? input.files.filter(Boolean) : [],
     ...(activeSkills.length > 0 ? { activeSkills } : {}),
-    ...(inlineItems.length > 0 ? { inlineItems } : {})
+    ...(inlineItems.length > 0 ? { inlineItems } : {}),
+    ...(input?.windowContext ? { windowContext: input.windowContext } : {})
   }
 }
 
@@ -148,12 +149,14 @@ export class DeepChatPendingInputStore {
       ...(existing.inlineItems ?? []),
       ...shiftInlineItems(next.inlineItems, nextOffset)
     ]
+    const windowContext = next.windowContext ?? existing.windowContext
     this.sqlitePresenter.deepchatPendingInputsTable.update(itemId, {
       payload_json: JSON.stringify({
         text,
         files,
         ...(activeSkills.length > 0 ? { activeSkills } : {}),
-        ...(inlineItems.length > 0 ? { inlineItems } : {})
+        ...(inlineItems.length > 0 ? { inlineItems } : {}),
+        ...(windowContext ? { windowContext } : {})
       })
     })
     return this.toRecord(this.requireRow(itemId, row.session_id))
@@ -161,8 +164,15 @@ export class DeepChatPendingInputStore {
 
   updateQueueInput(itemId: string, input: string | SendMessageInput): PendingSessionInputRecord {
     const row = this.requireRow(itemId)
+    const existing = this.parsePayload(row.payload_json)
+    const normalized = normalizeInput(input)
     this.sqlitePresenter.deepchatPendingInputsTable.update(itemId, {
-      payload_json: JSON.stringify(normalizeInput(input))
+      payload_json: JSON.stringify({
+        ...normalized,
+        ...(normalized.windowContext || existing.windowContext
+          ? { windowContext: normalized.windowContext ?? existing.windowContext }
+          : {})
+      })
     })
     return this.toRecord(this.requireRow(itemId, row.session_id))
   }

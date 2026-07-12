@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { WindowFollowerPresenter } from '@/presenter/windowFollowerPresenter'
+import type { WindowContextSnapshot } from '@shared/windowFollower'
 
 function createWindow() {
   let bounds = { x: 100, y: 80, width: 1000, height: 760 }
@@ -195,5 +196,208 @@ describe('WindowFollowerPresenter', () => {
 
     expect(onStateChanged).toHaveBeenCalledOnce()
     expect(onStateChanged).toHaveBeenCalledWith(expect.objectContaining({ mode: 'normal' }))
+  })
+
+  it('force-refreshes permissions and returns context only while following', async () => {
+    const window = createWindow()
+    const snapshot: WindowContextSnapshot = {
+      schemaVersion: 1,
+      trackingState: 'following',
+      source: 'active',
+      freshness: 'live',
+      capturedAt: 1_000,
+      lastVerifiedAt: 1_000,
+      app: {
+        stableKey: 'bundleId:com.microsoft.VSCode',
+        name: 'Code',
+        bundleId: 'com.microsoft.VSCode',
+        path: '/Applications/Visual Studio Code.app',
+        processId: 42
+      },
+      window: {
+        windowId: 7,
+        title: 'PRD.md - SideAI',
+        bounds: { x: 100, y: 100, width: 900, height: 700 }
+      },
+      permissions: {
+        platform: 'macos',
+        accessibility: 'granted',
+        screenRecording: 'granted',
+        checkedAt: 1_000
+      }
+    }
+    const refreshContext = vi.fn(async () => ({
+      permissions: snapshot.permissions,
+      canReadWindowContext: true,
+      automaticAdhesionAvailable: true,
+      snapshot,
+      lastError: null
+    }))
+    const presenter = new WindowFollowerPresenter({
+      getWindow: () => window,
+      getDisplayMatching: () => primary,
+      getAllDisplays: () => [primary],
+      refreshContext
+    })
+
+    expect(await presenter.captureWindowContextForMessage()).toBeNull()
+    presenter.followTarget(snapshot.window.bounds)
+    const captured = await presenter.captureWindowContextForMessage()
+
+    expect(captured).toEqual(snapshot)
+    expect(captured).not.toBe(snapshot)
+    expect(Object.isFrozen(captured)).toBe(true)
+    expect(Object.isFrozen(captured?.window.bounds)).toBe(true)
+    expect(refreshContext).toHaveBeenLastCalledWith(true)
+  })
+
+  it('does not attach context when a forced refresh only then enters following mode', async () => {
+    const window = createWindow()
+    const snapshot = {
+      source: 'active' as const,
+      freshness: 'live' as const,
+      window: { bounds: { x: 100, y: 100, width: 900, height: 700 } }
+    }
+    const presenter = new WindowFollowerPresenter({
+      getWindow: () => window,
+      getDisplayMatching: () => primary,
+      getAllDisplays: () => [primary],
+      refreshContext: vi.fn(async () => ({
+        automaticAdhesionAvailable: true,
+        snapshot
+      }))
+    })
+
+    expect(await presenter.captureWindowContextForMessage()).toBeNull()
+    expect(presenter.mode).toBe('following')
+  })
+
+  it('runs a forced permission refresh after an ordinary refresh already in flight', async () => {
+    const window = createWindow()
+    let releaseOrdinaryRefresh: (() => void) | undefined
+    const ordinaryRefresh = new Promise<void>((resolve) => {
+      releaseOrdinaryRefresh = resolve
+    })
+    const result = {
+      automaticAdhesionAvailable: true,
+      snapshot: {
+        source: 'active' as const,
+        freshness: 'live' as const,
+        window: { bounds: { x: 100, y: 100, width: 900, height: 700 } }
+      }
+    }
+    const refreshContext = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        await ordinaryRefresh
+        return result
+      })
+      .mockResolvedValueOnce(result)
+    const presenter = new WindowFollowerPresenter({
+      getWindow: () => window,
+      getDisplayMatching: () => primary,
+      getAllDisplays: () => [primary],
+      refreshContext
+    })
+    presenter.followTarget(result.snapshot.window.bounds)
+
+    const backgroundRefresh = presenter.refresh(false)
+    const capture = presenter.captureWindowContextForMessage()
+    releaseOrdinaryRefresh?.()
+    await backgroundRefresh
+    await capture
+
+    expect(refreshContext.mock.calls.map(([force]) => force)).toEqual([false, true])
+  })
+
+  it('runs a forced permission refresh after an ordinary in-flight refresh rejects', async () => {
+    const window = createWindow()
+    const result = {
+      automaticAdhesionAvailable: true,
+      snapshot: {
+        source: 'active' as const,
+        freshness: 'live' as const,
+        window: { bounds: { x: 100, y: 100, width: 900, height: 700 } }
+      }
+    }
+    const refreshContext = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('ordinary refresh failed'))
+      .mockResolvedValueOnce(result)
+    const presenter = new WindowFollowerPresenter({
+      getWindow: () => window,
+      getDisplayMatching: () => primary,
+      getAllDisplays: () => [primary],
+      refreshContext
+    })
+    presenter.followTarget(result.snapshot.window.bounds)
+
+    const backgroundRefresh = presenter.refresh(false)
+    const capture = presenter.captureWindowContextForMessage()
+
+    await expect(backgroundRefresh).rejects.toThrow('ordinary refresh failed')
+    await expect(capture).resolves.not.toBeNull()
+    expect(refreshContext.mock.calls.map(([force]) => force)).toEqual([false, true])
+  })
+
+  it.each(['fixed', 'detached'] as const)('does not attach context in %s mode', async (mode) => {
+    const window = createWindow()
+    const presenter = new WindowFollowerPresenter({
+      getWindow: () => window,
+      getDisplayMatching: () => primary,
+      getAllDisplays: () => [primary],
+      refreshContext: vi.fn(async () => ({
+        automaticAdhesionAvailable: true,
+        snapshot: {
+          source: 'active' as const,
+          freshness: 'live' as const,
+          window: { bounds: { x: 100, y: 100, width: 900, height: 700 } }
+        }
+      }))
+    })
+
+    mode === 'fixed' ? presenter.setFixed(true) : presenter.setDetached(true)
+
+    expect(await presenter.captureWindowContextForMessage()).toBeNull()
+  })
+
+  it('does not attach grace or unavailable targets while following', async () => {
+    const window = createWindow()
+    const refreshContext = vi
+      .fn()
+      .mockResolvedValueOnce({
+        automaticAdhesionAvailable: true,
+        snapshot: {
+          source: 'last-known' as const,
+          freshness: 'grace' as const,
+          window: { bounds: { x: 100, y: 100, width: 900, height: 700 } }
+        }
+      })
+      .mockResolvedValueOnce({ automaticAdhesionAvailable: true, snapshot: null })
+    const presenter = new WindowFollowerPresenter({
+      getWindow: () => window,
+      getDisplayMatching: () => primary,
+      getAllDisplays: () => [primary],
+      refreshContext
+    })
+    presenter.followTarget({ x: 100, y: 100, width: 900, height: 700 })
+
+    expect(await presenter.captureWindowContextForMessage()).toBeNull()
+    expect(await presenter.captureWindowContextForMessage()).toBeNull()
+  })
+
+  it('does not block message sending when the forced context refresh fails', async () => {
+    const window = createWindow()
+    const presenter = new WindowFollowerPresenter({
+      getWindow: () => window,
+      getDisplayMatching: () => primary,
+      getAllDisplays: () => [primary],
+      refreshContext: vi.fn(async () => {
+        throw new Error('window read failed')
+      })
+    })
+    presenter.followTarget({ x: 100, y: 100, width: 900, height: 700 })
+
+    await expect(presenter.captureWindowContextForMessage()).resolves.toBeNull()
   })
 })
