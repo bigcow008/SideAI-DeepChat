@@ -1,5 +1,5 @@
 import { mount, flushPromises } from '@vue/test-utils'
-import { reactive, ref } from 'vue'
+import { defineComponent, nextTick, reactive, ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   GUIDED_ONBOARDING_RESUME_REQUESTED_EVENT,
@@ -481,9 +481,18 @@ const mountApp = async (options?: {
   const wrapper = mount(App, {
     global: {
       stubs: {
-        RouterView: true,
-        AppBar: true,
-        WindowSideBar: true,
+        RouterView: defineComponent({
+          name: 'RouterView',
+          template: '<div data-testid="router-content" />'
+        }),
+        AppBar: defineComponent({
+          name: 'AppBar',
+          template: '<div data-testid="desktop-app-bar" />'
+        }),
+        WindowSideBar: defineComponent({
+          name: 'WindowSideBar',
+          template: '<div data-testid="desktop-window-sidebar" />'
+        }),
         WindowFollowerToolbar: {
           template:
             '<button data-testid="window-follower-toolbar-stub" @click="$emit(\'open-settings\')" />',
@@ -579,9 +588,30 @@ describe('App startup welcome flow', () => {
       windowFollowerMode: 'normal'
     })
 
-    expect(wrapper.find('[data-testid="window-follower-toolbar-stub"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="window-follower-resize-stub"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="window-follower-toolbar-stub"]').isVisible()).toBe(false)
+    expect(wrapper.get('[data-testid="window-follower-resize-stub"]').isVisible()).toBe(false)
     expect(wrapper.find('[data-testid="window-follower-bubble-stub"]').exists()).toBe(false)
+  })
+
+  it('shows desktop chrome only in normal mode and keeps the same routed DOM node', async () => {
+    const { wrapper, windowFollowerStore } = await mountApp({
+      initComplete: true,
+      routeName: 'chat',
+      onboardingStatus: 'completed',
+      windowFollowerMode: 'normal'
+    })
+    const routedNode = wrapper.get('[data-testid="router-content"]').element
+
+    expect(wrapper.get('[data-testid="desktop-app-bar"]').isVisible()).toBe(true)
+    expect(wrapper.get('[data-testid="desktop-window-sidebar"]').isVisible()).toBe(true)
+
+    windowFollowerStore.state.mode = 'following'
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="desktop-app-bar"]').isVisible()).toBe(false)
+    expect(wrapper.get('[data-testid="desktop-window-sidebar"]').isVisible()).toBe(false)
+    expect(wrapper.get('[data-testid="window-follower-toolbar-stub"]').isVisible()).toBe(true)
+    expect(wrapper.get('[data-testid="router-content"]').element).toBe(routedNode)
   })
 
   it('renders toolbar and resize controls over the expanded panel surface', async () => {
@@ -609,7 +639,7 @@ describe('App startup welcome flow', () => {
     expect(wrapper.get('[data-testid="app-root"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="window-follower-surface"]').isVisible()).toBe(false)
     expect(wrapper.get('[data-testid="window-follower-bubble-stub"]')).toBeTruthy()
-    expect(wrapper.find('[data-testid="window-follower-toolbar-stub"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="window-follower-toolbar-stub"]').isVisible()).toBe(false)
   })
 
   it('opens and closes settings inside the same expanded panel surface', async () => {
@@ -625,7 +655,7 @@ describe('App startup welcome flow', () => {
     expect(wrapper.get('[data-testid="app-root"]').exists()).toBe(true)
 
     await wrapper.get('[data-testid="window-follower-settings-stub"]').trigger('click')
-    expect(wrapper.find('[data-testid="window-follower-settings-stub"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="window-follower-settings-stub"]').isVisible()).toBe(false)
   })
 
   it('routes to welcome when init is incomplete', async () => {

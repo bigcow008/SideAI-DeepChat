@@ -633,6 +633,22 @@ async function expectSessionRestoreSettleStopsAfter(
 }
 
 describe('ChatPage', () => {
+  it('keeps the original message, composer and status components in compact layout hooks', async () => {
+    const { wrapper } = await setup()
+
+    expect(wrapper.get('[data-testid="chat-page"]').classes()).toContain(
+      'window-follower-chat-page'
+    )
+    expect(wrapper.findComponent({ name: 'MessageList' }).classes()).toContain(
+      'window-follower-compact'
+    )
+    expect(wrapper.get('[data-testid="chat-composer-region"]').classes()).toContain(
+      'window-follower-chat-composer'
+    )
+    expect(wrapper.find('.chat-input-box-stub').exists()).toBe(true)
+    expect(wrapper.findComponent({ name: 'ChatStatusBar' }).exists()).toBe(true)
+  })
+
   it('bounds mounted message rows for long loaded histories', async () => {
     const messages = Array.from({ length: 300 }, (_, index) => ({
       ...buildAssistantMessage([

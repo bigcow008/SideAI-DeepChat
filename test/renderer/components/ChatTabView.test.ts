@@ -315,4 +315,28 @@ describe('ChatTabView startup and routing', () => {
     expect(wrapper.find('[data-testid="chat-page"]').text()).toContain('session-42')
     expect(wrapper.find('[data-testid="collapsed-new-chat-button"]').exists()).toBe(false)
   })
+
+  it('provides stable compact layout hooks without replacing the routed chat tree', async () => {
+    const { wrapper, pageRouter } = await setup({
+      collapsed: false,
+      currentRoute: 'chat',
+      selectedAgentId: 'deepchat',
+      chatSessionId: 'session-42'
+    })
+    const chatNode = wrapper.get('[data-testid="chat-page"]').element
+
+    expect(wrapper.get('[data-testid="chat-tab-layout"]').classes()).toContain(
+      'window-follower-chat-layout'
+    )
+    expect(wrapper.get('[data-testid="chat-route-region"]').classes()).toContain(
+      'window-follower-chat-main'
+    )
+    expect(wrapper.get('[data-testid="chat-side-panel"]').classes()).toContain(
+      'window-follower-side-panel-overlay'
+    )
+
+    pageRouter.currentRoute = 'chat'
+    await flushPromises()
+    expect(wrapper.get('[data-testid="chat-page"]').element).toBe(chatNode)
+  })
 })

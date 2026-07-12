@@ -1,5 +1,8 @@
 <template>
-  <div class="relative flex h-full min-h-0 w-full flex-row overflow-hidden">
+  <div
+    data-testid="chat-tab-layout"
+    class="window-follower-chat-layout relative flex h-full min-h-0 w-full flex-row overflow-hidden"
+  >
     <Button
       v-if="pageRouter.currentRoute !== 'chat' && !windowFollowerDebugStore.isOpen"
       variant="ghost"
@@ -12,7 +15,8 @@
       <Icon icon="lucide:bug" class="h-4 w-4" />
     </Button>
     <div
-      class="relative flex h-full min-h-0 min-w-0 w-0 flex-1 transition-[width] duration-[var(--dc-motion-default)] ease-[var(--dc-ease-out-express)]"
+      data-testid="chat-route-region"
+      class="window-follower-chat-main relative flex h-full min-h-0 min-w-0 w-0 flex-1 transition-[width] duration-[var(--dc-motion-default)] ease-[var(--dc-ease-out-express)]"
     >
       <template v-if="isReady">
         <!--
@@ -45,6 +49,7 @@
     </div>
 
     <ChatSidePanel
+      class="window-follower-side-panel-overlay"
       :session-id="pageRouter.currentRoute === 'chat' ? pageRouter.chatSessionId : null"
       :workspace-path="sessionStore.activeSession?.projectDir ?? null"
     />
@@ -184,5 +189,13 @@ onBeforeUnmount(() => {
   min-height: 0;
   min-width: 0;
   flex: 1 1 0%;
+}
+
+:global(html[data-window-follower-surface='panel']) .window-follower-chat-layout {
+  isolation: isolate;
+}
+
+:global(html[data-window-follower-surface='panel']) .window-follower-chat-main {
+  width: 100%;
 }
 </style>

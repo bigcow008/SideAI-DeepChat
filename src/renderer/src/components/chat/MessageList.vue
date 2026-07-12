@@ -1,6 +1,12 @@
 <template>
-  <div data-testid="chat-message-list" class="chat-message-list w-full min-w-0">
-    <div class="mx-auto w-full max-w-5xl space-y-1 px-6 py-6">
+  <div
+    data-testid="chat-message-list"
+    class="chat-message-list window-follower-compact w-full min-w-0"
+  >
+    <div
+      data-testid="chat-message-list-content"
+      class="window-follower-message-content mx-auto w-full max-w-5xl space-y-1 px-6 py-6"
+    >
       <div
         v-if="beforeSpacerHeight > 0"
         aria-hidden="true"
@@ -136,3 +142,9 @@ const handleCopyImage = async (
   await captureMessage({ messageId, parentId: resolvedParentId, fromTop, modelInfo })
 }
 </script>
+
+<style scoped>
+:global(html[data-window-follower-surface='panel']) .window-follower-message-content {
+  padding-inline: 0.75rem;
+}
+</style>

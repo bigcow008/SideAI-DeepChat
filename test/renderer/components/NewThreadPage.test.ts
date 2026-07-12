@@ -316,6 +316,16 @@ const setup = async (options?: {
 }
 
 describe('NewThreadPage ACP draft session bootstrap', () => {
+  it('keeps the original project selector and input in a compact new-thread layout', async () => {
+    const { wrapper } = await setup()
+
+    expect(wrapper.get('[data-testid="new-thread-page"]').classes()).toContain(
+      'new-thread-page--window-follower'
+    )
+    expect(wrapper.get('[data-testid="new-thread-project-trigger"]')).toBeTruthy()
+    expect(wrapper.get('[data-testid="chat-input-box"]')).toBeTruthy()
+  })
+
   it('defers ACP draft session bootstrap until startup deferred tasks are released', async () => {
     const { sessionClient, flushStartupDeferredTasks } = await setup({
       deferStartupTasks: true

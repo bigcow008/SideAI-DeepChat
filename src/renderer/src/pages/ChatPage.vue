@@ -4,7 +4,7 @@
       ref="scrollContainer"
       data-testid="chat-page"
       :data-generating="String(isGenerating)"
-      class="message-list-container h-full w-full min-w-0 overflow-y-auto"
+      class="message-list-container window-follower-chat-page h-full w-full min-w-0 overflow-y-auto"
       :class="{ 'dc-list-scrolling': isListScrolling }"
       @scroll.passive="onScroll"
       @wheel.passive="onWheel"
@@ -51,6 +51,7 @@
         </div>
         <MessageList
           ref="messageListRef"
+          class="window-follower-compact"
           :messages="visibleDisplayMessages"
           :all-messages-for-capture="displayMessages"
           :before-spacer-height="messageWindowBeforeHeight"
@@ -78,7 +79,8 @@
       <!-- Input area (sticky bottom, messages scroll under) -->
       <div
         v-if="!isReadOnlySession"
-        class="chat-capture-hide sticky bottom-0 w-full px-6 pb-3 pt-3"
+        data-testid="chat-composer-region"
+        class="chat-capture-hide window-follower-chat-composer sticky bottom-0 w-full px-6 pb-3 pt-3"
         style="z-index: var(--dc-z-sticky)"
       >
         <div class="mx-auto flex w-full max-w-5xl min-w-0 flex-col items-center">
@@ -2786,6 +2788,10 @@ onUnmounted(() => {
   overscroll-behavior: contain;
   overflow-anchor: none;
   scroll-behavior: auto;
+}
+
+html[data-window-follower-surface='panel'] .window-follower-chat-composer {
+  padding-inline: 0.75rem;
 }
 
 /*

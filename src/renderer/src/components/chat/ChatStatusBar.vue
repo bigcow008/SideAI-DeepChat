@@ -1,6 +1,12 @@
 <template>
-  <div :class="['w-full', props.maxWidthClass]">
-    <div class="flex w-full items-center justify-between px-1 py-2">
+  <div
+    data-testid="chat-status-bar"
+    :class="['window-follower-compact w-full', props.maxWidthClass]"
+  >
+    <div
+      data-testid="chat-status-scroll"
+      class="window-follower-status-scroll flex w-full items-center justify-between px-1 py-2"
+    >
       <div class="flex min-w-0 items-center gap-1">
         <template v-if="isAcpAgent">
           <div
@@ -3051,3 +3057,22 @@ defineExpose({
   modelSettingsSelection
 })
 </script>
+
+<style scoped>
+:global(html[data-window-follower-surface='panel']) .window-follower-status-scroll {
+  justify-content: flex-start;
+  gap: 0.25rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+:global(html[data-window-follower-surface='panel'])
+  .window-follower-status-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+:global(html[data-window-follower-surface='panel']) .window-follower-status-scroll > div {
+  flex: 0 0 auto;
+}
+</style>

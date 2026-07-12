@@ -1,10 +1,14 @@
 <template>
-  <div class="flex items-center justify-between px-3 py-2">
+  <div
+    data-testid="chat-input-toolbar"
+    class="window-follower-compact flex items-center justify-between px-3 py-2"
+  >
     <div class="flex items-center gap-1">
       <!-- Attach button -->
       <Tooltip>
         <TooltipTrigger as-child>
           <Button
+            data-testid="chat-attach-button"
             variant="ghost"
             size="icon"
             class="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
@@ -262,6 +266,11 @@ function handlePrimaryAction() {
 </script>
 
 <style scoped>
+:global(html[data-window-follower-surface='panel']) .window-follower-compact {
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
 .voice-wave {
   width: 18px;
   height: 18px;

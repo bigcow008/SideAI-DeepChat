@@ -3,17 +3,19 @@
     <div
       ref="guideRootRef"
       data-testid="new-thread-page"
-      class="relative h-full w-full flex flex-col"
+      class="new-thread-page--window-follower relative h-full w-full flex flex-col"
     >
       <!-- Main content area (centered) -->
-      <div class="flex-1 flex flex-col items-center justify-center px-6">
+      <div
+        class="new-thread-page__content flex min-h-0 flex-1 flex-col items-center justify-center px-6"
+      >
         <!-- Logo -->
-        <div class="mb-4">
+        <div class="new-thread-page__logo mb-4">
           <img src="@/assets/logo-dark.png" class="w-14 h-14" loading="lazy" />
         </div>
 
         <!-- Heading -->
-        <h1 class="text-3xl font-semibold text-foreground mb-4">
+        <h1 class="new-thread-page__title text-3xl font-semibold text-foreground mb-4">
           {{ t('chat.newThread.title') }}
         </h1>
 
@@ -24,7 +26,7 @@
               variant="ghost"
               size="sm"
               data-testid="new-thread-project-trigger"
-              class="h-7 px-2.5 gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-6"
+              class="new-thread-page__project-trigger h-7 px-2.5 gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-6"
             >
               <Icon
                 :icon="selectedProjectIcon"
@@ -96,7 +98,10 @@
         </DropdownMenu>
 
         <!-- Input area -->
-        <div ref="firstChatGuideHostRef" :class="['w-full max-w-4xl flex justify-center']">
+        <div
+          ref="firstChatGuideHostRef"
+          :class="['new-thread-page__composer w-full max-w-4xl flex justify-center']"
+        >
           <ChatInputBox
             ref="chatInputRef"
             :class="activeChatGuide?.key === 'first-chat' ? 'relative z-30 rounded-2xl' : ''"
@@ -1240,3 +1245,31 @@ watch(
   { immediate: true }
 )
 </script>
+
+<style scoped>
+:global(html[data-window-follower-surface='panel']) .new-thread-page__content {
+  justify-content: center;
+  overflow-y: auto;
+  padding: 0.75rem;
+}
+
+:global(html[data-window-follower-surface='panel']) .new-thread-page__logo {
+  display: none;
+}
+
+:global(html[data-window-follower-surface='panel']) .new-thread-page__title {
+  margin-bottom: 0.5rem;
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+}
+
+:global(html[data-window-follower-surface='panel']) .new-thread-page__project-trigger {
+  max-width: 100%;
+  margin-bottom: 0.75rem;
+}
+
+:global(html[data-window-follower-surface='panel']) .new-thread-page__composer {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+</style>

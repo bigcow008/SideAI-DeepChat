@@ -640,17 +640,17 @@ onBeforeUnmount(() => {
       :class="isWinMacOS ? 'bg-window-background' : 'bg-background'"
     >
       <WindowFollowerToolbar
-        v-if="
+        v-show="
           isWindowFollowerPanel &&
           !windowFollowerStore.state.collapsed &&
           !windowFollowerSettingsOpen
         "
         @open-settings="windowFollowerSettingsOpen = true"
       />
-      <AppBar />
+      <AppBar v-show="!isWindowFollowerPanel" />
       <div class="flex h-0 grow flex-row overflow-hidden px-px py-px relative" :dir="langStore.dir">
         <div class="flex h-full w-full flex-row">
-          <WindowSideBar></WindowSideBar>
+          <WindowSideBar v-show="!isWindowFollowerPanel"></WindowSideBar>
 
           <!-- Main content area -->
           <div
@@ -682,14 +682,14 @@ onBeforeUnmount(() => {
         "
       />
       <WindowFollowerResizeHandle
-        v-if="
+        v-show="
           isWindowFollowerPanel &&
           !windowFollowerStore.state.collapsed &&
           !windowFollowerSettingsOpen
         "
       />
       <WindowFollowerSettingsPanel
-        v-if="
+        v-show="
           isWindowFollowerPanel &&
           !windowFollowerStore.state.collapsed &&
           windowFollowerSettingsOpen

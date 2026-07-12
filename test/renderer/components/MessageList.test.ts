@@ -166,6 +166,23 @@ describe('MessageList', () => {
     expect(wrapper.text()).toContain('u2')
   })
 
+  it('exposes compact message spacing without changing rendered rows', () => {
+    const wrapper = mount(MessageList, {
+      props: {
+        messages: [createMessage('u1', 'user', 1), createMessage('a1', 'assistant', 2)]
+      }
+    })
+
+    expect(wrapper.get('[data-testid="chat-message-list"]').classes()).toContain(
+      'window-follower-compact'
+    )
+    expect(wrapper.get('[data-testid="chat-message-list-content"]').classes()).toContain(
+      'window-follower-message-content'
+    )
+    expect(wrapper.find('.user-item').exists()).toBe(true)
+    expect(wrapper.find('.assistant-item').exists()).toBe(true)
+  })
+
   it('switches inline compaction copy between compacting and compacted', () => {
     const compactingWrapper = mount(MessageList, {
       props: {
