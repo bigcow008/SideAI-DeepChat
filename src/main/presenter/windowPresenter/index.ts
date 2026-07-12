@@ -39,6 +39,13 @@ import { openExternalUrl } from '@/lib/externalUrl'
 import { activateAppOnMac } from '@/lib/activateApp'
 import { DEEPCHAT_EVENT_CHANNEL } from '@shared/contracts/channels'
 import { createDeepchatEventEnvelope, publishDeepchatEvent } from '@/routes/publishDeepchatEvent'
+import {
+  DESKTOP_DEFAULT_HEIGHT,
+  DESKTOP_DEFAULT_WIDTH,
+  DESKTOP_MIN_HEIGHT,
+  DESKTOP_MIN_WIDTH,
+  normalizeDesktopWindowBounds
+} from './managedWindowBounds'
 
 type PendingSettingsMessage = {
   channel: string
@@ -670,13 +677,16 @@ export class WindowPresenter implements IWindowPresenter {
     const iconFile = nativeImage.createFromPath(process.platform === 'win32' ? iconWin : icon)
 
     // Standalone browser shell has been removed. All managed windows now use chat shell sizing.
-    const defaultWidth = 800
-    const defaultHeight = 620
-
     // 使用窗口状态管理器恢复位置和尺寸
     const managedWindowState = windowStateManager({
-      defaultWidth,
-      defaultHeight
+      defaultWidth: DESKTOP_DEFAULT_WIDTH,
+      defaultHeight: DESKTOP_DEFAULT_HEIGHT
+    })
+    const managedDesktopBounds = normalizeDesktopWindowBounds({
+      x: managedWindowState.x,
+      y: managedWindowState.y,
+      width: managedWindowState.width,
+      height: managedWindowState.height
     })
 
     // 计算初始位置，确保窗口完全在屏幕范围内
@@ -684,24 +694,26 @@ export class WindowPresenter implements IWindowPresenter {
       options?.x !== undefined
         ? options.x
         : this.validateWindowPosition(
-            managedWindowState.x,
-            managedWindowState.width,
-            managedWindowState.y,
-            managedWindowState.height
+            managedDesktopBounds.x,
+            managedDesktopBounds.width,
+            managedDesktopBounds.y,
+            managedDesktopBounds.height
           ).x
     let initialY =
       options?.y !== undefined
         ? options?.y
         : this.validateWindowPosition(
-            managedWindowState.x,
-            managedWindowState.width,
-            managedWindowState.y,
-            managedWindowState.height
+            managedDesktopBounds.x,
+            managedDesktopBounds.width,
+            managedDesktopBounds.y,
+            managedDesktopBounds.height
           ).y
 
     const appWindow = new BrowserWindow({
-      width: managedWindowState.width,
-      height: managedWindowState.height,
+      width: managedDesktopBounds.width,
+      height: managedDesktopBounds.height,
+      minWidth: DESKTOP_MIN_WIDTH,
+      minHeight: DESKTOP_MIN_HEIGHT,
       x: initialX,
       y: initialY,
       show: false, // 先隐藏窗口，等待 ready-to-show 以避免白屏
@@ -745,11 +757,6 @@ export class WindowPresenter implements IWindowPresenter {
     // 应用内容保护设置
     const contentProtectionEnabled = this.configPresenter.getContentProtectionEnabled()
     this.updateContentProtection(appWindow, contentProtectionEnabled)
-
-    // 开发模式下自动打开 DevTools
-    if (is.dev) {
-      appWindow.webContents.openDevTools()
-    }
 
     // --- 窗口事件监听 ---
 
@@ -985,12 +992,6 @@ export class WindowPresenter implements IWindowPresenter {
       appWindow.loadFile(join(__dirname, '../renderer/index.html'), {
         hash: '/chat'
       })
-    }
-
-    // DevTools 不再自动打开，需要手动通过菜单或快捷键打开
-    // 开发环境直接自动开启，方便排查
-    if (is.dev) {
-      appWindow.webContents.openDevTools({ mode: 'detach' })
     }
 
     logger.info(`Window ${windowId} created successfully.`)

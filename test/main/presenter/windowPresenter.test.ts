@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BrowserWindow } from 'electron'
+import { is } from '@electron-toolkit/utils'
 import { SETTINGS_EVENTS } from '@/events'
 
 const activateAppOnMacMock = vi.hoisted(() => vi.fn())
@@ -38,6 +39,38 @@ describe('WindowPresenter', () => {
 
   afterEach(() => {
     ;(BrowserWindow as any).fromId = originalBrowserWindowFromId
+    is.dev = false
+  })
+
+  it('clamps persisted compact bounds and sets a complete desktop minimum size', async () => {
+    const { WindowPresenter } = await import('@/presenter/windowPresenter')
+    const presenter = new WindowPresenter({
+      getContentProtectionEnabled: vi.fn(() => false)
+    } as any)
+
+    await presenter.createAppWindow({ x: 0, y: 0 })
+
+    expect(BrowserWindow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        width: 960,
+        height: 640,
+        minWidth: 960,
+        minHeight: 640
+      })
+    )
+  })
+
+  it('does not auto-open DevTools for a development main window', async () => {
+    is.dev = true
+    const { WindowPresenter } = await import('@/presenter/windowPresenter')
+    const presenter = new WindowPresenter({
+      getContentProtectionEnabled: vi.fn(() => false)
+    } as any)
+
+    await presenter.createAppWindow({ x: 0, y: 0 })
+
+    const window = vi.mocked(BrowserWindow).mock.results.at(-1)?.value as any
+    expect(window.webContents.openDevTools).not.toHaveBeenCalled()
   })
 
   it('returns the tracked main BrowserWindow even when another window is focused', async () => {
