@@ -188,6 +188,48 @@ export class WindowPresenter implements IWindowPresenter {
     this.mainWindowStateTrackingSuspended = false
   }
 
+  enterPrimaryWindowFollowerPresentation(options: {
+    collapsed: boolean
+    hasTransparentReserve: boolean
+  }): void {
+    const window = this.getPrimaryWindow()
+    if (!window) return
+
+    window.setMinimumSize(36, 36)
+    window.setResizable(false)
+    window.setMinimizable(false)
+    window.setMaximizable(false)
+    window.setFullScreenable(false)
+    if (process.platform === 'darwin') {
+      window.setWindowButtonVisibility(false)
+    }
+    window.setHasShadow(!options.collapsed && !options.hasTransparentReserve)
+    window.setSkipTaskbar(true)
+    window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  }
+
+  restorePrimaryWindowPresentation(): void {
+    const window = this.getPrimaryWindow()
+    if (!window) return
+
+    window.setMinimumSize(DESKTOP_MIN_WIDTH, DESKTOP_MIN_HEIGHT)
+    window.setResizable(true)
+    window.setMinimizable(true)
+    window.setMaximizable(true)
+    window.setFullScreenable(true)
+    if (process.platform === 'darwin') {
+      window.setWindowButtonVisibility(true)
+    }
+    window.setHasShadow(true)
+    window.setVisibleOnAllWorkspaces(false)
+
+    const contentProtectionEnabled = this.configPresenter.getContentProtectionEnabled()
+    window.setSkipTaskbar(contentProtectionEnabled)
+    if (process.platform === 'darwin') {
+      window.setHiddenInMissionControl(contentProtectionEnabled)
+    }
+  }
+
   /**
    * 预览文件。macOS 使用 Quick Look，其他平台使用系统默认应用打开。
    * @param filePath 文件路径。

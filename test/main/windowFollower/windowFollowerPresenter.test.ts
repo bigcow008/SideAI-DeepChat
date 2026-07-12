@@ -4,20 +4,39 @@ import type { WindowContextSnapshot } from '@shared/windowFollower'
 
 function createWindow() {
   let bounds = { x: 100, y: 80, width: 1000, height: 760 }
-  return {
+  const listeners = new Map<string, Set<() => void>>()
+  const window = {
     id: 7,
     webContents: { id: 70 },
     getBounds: vi.fn(() => ({ ...bounds })),
     setBounds: vi.fn((next) => {
       bounds = { ...next }
     }),
+    setPosition: vi.fn((x: number, y: number) => {
+      bounds = { ...bounds, x, y }
+    }),
     setAlwaysOnTop: vi.fn(),
     setIgnoreMouseEvents: vi.fn(),
     showInactive: vi.fn(),
     show: vi.fn(),
     focus: vi.fn(),
-    isDestroyed: vi.fn(() => false)
+    isDestroyed: vi.fn(() => false),
+    on: vi.fn((event: string, listener: () => void) => {
+      const eventListeners = listeners.get(event) ?? new Set()
+      eventListeners.add(listener)
+      listeners.set(event, eventListeners)
+      return window
+    }),
+    removeListener: vi.fn((event: string, listener: () => void) => {
+      listeners.get(event)?.delete(listener)
+      return window
+    }),
+    moveTo(next: { x: number; y: number; width: number; height: number }) {
+      bounds = { ...next }
+      listeners.get('move')?.forEach((listener) => listener())
+    }
   }
+  return window
 }
 
 const primary = {
@@ -93,6 +112,66 @@ describe('WindowFollowerPresenter', () => {
       expect.objectContaining({ width: 360, height: 700 })
     )
     expect(window.id).toBe(7)
+  })
+
+  it('expands a fixed collapsed bubble at its user-dragged position', () => {
+    const window = createWindow()
+    const presenter = new WindowFollowerPresenter({
+      getWindow: () => window,
+      getDisplayMatching: () => primary,
+      getAllDisplays: () => [primary]
+    })
+    presenter.followTarget({ x: 100, y: 100, width: 900, height: 700 })
+    presenter.setFixed(true)
+    presenter.setCollapsed(true)
+
+    window.moveTo({ x: 1320, y: 240, width: 36, height: 36 })
+    presenter.setPanelWidth(480)
+    presenter.setCollapsed(false)
+
+    expect(window.getBounds()).toEqual({ x: 1320, y: 240, width: 480, height: 700 })
+  })
+
+  it('removes the transparent reserve before a followed panel becomes stationary', () => {
+    const window = createWindow()
+    const presenter = new WindowFollowerPresenter({
+      getWindow: () => window,
+      getDisplayMatching: () => primary,
+      getAllDisplays: () => [primary]
+    })
+    presenter.followTarget({ x: 0, y: 0, width: 1728, height: 1080 })
+
+    expect(window.getBounds()).toEqual({ x: 1688, y: 0, width: 404, height: 1080 })
+
+    presenter.setFixed(true)
+
+    expect(window.getBounds()).toEqual({ x: 1732, y: 0, width: 360, height: 1080 })
+    expect(presenter.getDebugState().contentOffsetX).toBe(0)
+  })
+
+  it('switches native chrome for the same window between desktop and panel modes', () => {
+    const window = createWindow()
+    const enterPanelWindowPresentation = vi.fn()
+    const restoreDesktopWindowPresentation = vi.fn()
+    const presenter = new WindowFollowerPresenter({
+      getWindow: () => window,
+      getDisplayMatching: () => primary,
+      getAllDisplays: () => [primary],
+      enterPanelWindowPresentation,
+      restoreDesktopWindowPresentation
+    })
+
+    presenter.followTarget({ x: 100, y: 100, width: 900, height: 700 })
+
+    expect(enterPanelWindowPresentation).toHaveBeenLastCalledWith({
+      collapsed: false,
+      hasTransparentReserve: false
+    })
+
+    presenter.returnToNormal(true)
+
+    expect(restoreDesktopWindowPresentation).toHaveBeenCalledOnce()
+    expect(window.webContents.id).toBe(70)
   })
 
   it('automatically follows live external targets without bouncing back on retained self focus', async () => {

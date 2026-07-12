@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BrowserWindow } from 'electron'
 import { is } from '@electron-toolkit/utils'
-import { SETTINGS_EVENTS } from '@/events'
+import { CONFIG_EVENTS, SETTINGS_EVENTS, SHORTCUT_EVENTS, WINDOW_EVENTS } from '@/events'
+import { eventBus } from '@/eventbus'
 
 const activateAppOnMacMock = vi.hoisted(() => vi.fn())
 const originalBrowserWindowFromId = (BrowserWindow as any).fromId
@@ -40,6 +41,10 @@ describe('WindowPresenter', () => {
   afterEach(() => {
     ;(BrowserWindow as any).fromId = originalBrowserWindowFromId
     is.dev = false
+    eventBus.removeAllListeners(SHORTCUT_EVENTS.CREATE_NEW_WINDOW)
+    eventBus.removeAllListeners(SHORTCUT_EVENTS.GO_SETTINGS)
+    eventBus.removeAllListeners(CONFIG_EVENTS.CONTENT_PROTECTION_CHANGED)
+    eventBus.removeAllListeners(WINDOW_EVENTS.SET_APPLICATION_QUITTING)
   })
 
   it('clamps persisted compact bounds and sets a complete desktop minimum size', async () => {
@@ -101,6 +106,81 @@ describe('WindowPresenter', () => {
 
     expect(stateManager.unmanage).toHaveBeenCalledOnce()
     expect(stateManager.manage).toHaveBeenCalledWith(mainWindow)
+  })
+
+  it('applies compact native chrome to the same primary window in panel mode', async () => {
+    const { WindowPresenter } = await import('@/presenter/windowPresenter')
+    const presenter = new WindowPresenter({
+      getContentProtectionEnabled: vi.fn(() => false)
+    } as any)
+    const mainWindow = {
+      id: 7,
+      isDestroyed: vi.fn(() => false),
+      setMinimumSize: vi.fn(),
+      setResizable: vi.fn(),
+      setMinimizable: vi.fn(),
+      setMaximizable: vi.fn(),
+      setFullScreenable: vi.fn(),
+      setWindowButtonVisibility: vi.fn(),
+      setHasShadow: vi.fn(),
+      setSkipTaskbar: vi.fn(),
+      setVisibleOnAllWorkspaces: vi.fn()
+    }
+    ;(presenter as any).mainWindowId = 7
+    ;(BrowserWindow as any).fromId = vi.fn(() => mainWindow)
+
+    presenter.enterPrimaryWindowFollowerPresentation({
+      collapsed: false,
+      hasTransparentReserve: true
+    })
+
+    expect(mainWindow.setMinimumSize).toHaveBeenCalledWith(36, 36)
+    expect(mainWindow.setResizable).toHaveBeenCalledWith(false)
+    expect(mainWindow.setMinimizable).toHaveBeenCalledWith(false)
+    expect(mainWindow.setMaximizable).toHaveBeenCalledWith(false)
+    expect(mainWindow.setFullScreenable).toHaveBeenCalledWith(false)
+    expect(mainWindow.setWindowButtonVisibility).toHaveBeenCalledWith(false)
+    expect(mainWindow.setHasShadow).toHaveBeenCalledWith(false)
+    expect(mainWindow.setSkipTaskbar).toHaveBeenCalledWith(true)
+    expect(mainWindow.setVisibleOnAllWorkspaces).toHaveBeenCalledWith(true, {
+      visibleOnFullScreen: true
+    })
+  })
+
+  it('restores desktop native chrome after leaving panel mode', async () => {
+    const { WindowPresenter } = await import('@/presenter/windowPresenter')
+    const presenter = new WindowPresenter({
+      getContentProtectionEnabled: vi.fn(() => false)
+    } as any)
+    const mainWindow = {
+      id: 7,
+      isDestroyed: vi.fn(() => false),
+      setMinimumSize: vi.fn(),
+      setResizable: vi.fn(),
+      setMinimizable: vi.fn(),
+      setMaximizable: vi.fn(),
+      setFullScreenable: vi.fn(),
+      setWindowButtonVisibility: vi.fn(),
+      setHasShadow: vi.fn(),
+      setSkipTaskbar: vi.fn(),
+      setHiddenInMissionControl: vi.fn(),
+      setVisibleOnAllWorkspaces: vi.fn()
+    }
+    ;(presenter as any).mainWindowId = 7
+    ;(BrowserWindow as any).fromId = vi.fn(() => mainWindow)
+
+    presenter.restorePrimaryWindowPresentation()
+
+    expect(mainWindow.setMinimumSize).toHaveBeenCalledWith(960, 640)
+    expect(mainWindow.setResizable).toHaveBeenCalledWith(true)
+    expect(mainWindow.setMinimizable).toHaveBeenCalledWith(true)
+    expect(mainWindow.setMaximizable).toHaveBeenCalledWith(true)
+    expect(mainWindow.setFullScreenable).toHaveBeenCalledWith(true)
+    expect(mainWindow.setWindowButtonVisibility).toHaveBeenCalledWith(true)
+    expect(mainWindow.setHasShadow).toHaveBeenCalledWith(true)
+    expect(mainWindow.setSkipTaskbar).toHaveBeenCalledWith(false)
+    expect(mainWindow.setHiddenInMissionControl).toHaveBeenCalledWith(false)
+    expect(mainWindow.setVisibleOnAllWorkspaces).toHaveBeenCalledWith(false)
   })
 
   it('queues settings events until the settings renderer reports ready', async () => {

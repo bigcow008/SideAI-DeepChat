@@ -222,6 +222,10 @@ export class Presenter implements IPresenter {
       refreshContext: (forcePermissions) => windowContextService.refresh(forcePermissions),
       suspendWindowStateTracking: () => windowPresenter.suspendPrimaryWindowStateTracking(),
       resumeWindowStateTracking: () => windowPresenter.resumePrimaryWindowStateTracking(),
+      enterPanelWindowPresentation: (options) =>
+        windowPresenter.enterPrimaryWindowFollowerPresentation(options),
+      restoreDesktopWindowPresentation: () =>
+        windowPresenter.restorePrimaryWindowPresentation(),
       onStateChanged: (state) => publishDeepchatEvent(windowFollowerStateChangedEvent.name, state)
     })
     this.tabPresenter = new TabPresenter(this.windowPresenter)

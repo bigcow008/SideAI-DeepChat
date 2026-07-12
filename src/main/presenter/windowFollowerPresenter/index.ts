@@ -10,6 +10,12 @@ import {
 } from '@/windowFollower/core/panelBounds'
 import type { WindowContextRefreshResult } from '@/windowFollower/windowContextService'
 import { decidePanelMousePassthrough } from '@/windowFollower/core/panelMousePassthrough'
+import { normalizePanelWidth } from '@/windowFollower/core/panelBounds'
+import {
+  calculateStationaryPanelBounds,
+  captureStationaryExpandedBounds,
+  coordinatePanelNativeMove
+} from '@/windowFollower/core/panelPresentationBounds'
 
 type DisplayLike = {
   bounds: Bounds
@@ -21,12 +27,15 @@ type BrowserWindowLike = {
   webContents: { id: number }
   getBounds: () => Bounds
   setBounds: (bounds: Bounds) => void
+  setPosition: (x: number, y: number) => void
   setAlwaysOnTop: (flag: boolean) => void
   setIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) => void
   showInactive: () => void
   show: () => void
   focus: () => void
   isDestroyed: () => boolean
+  on: (event: 'move', listener: () => void) => unknown
+  removeListener: (event: 'move', listener: () => void) => unknown
 }
 
 type WindowFollowerPresenterDependencies = {
@@ -36,6 +45,11 @@ type WindowFollowerPresenterDependencies = {
   refreshContext?: (forcePermissions?: boolean) => Promise<WindowContextRefreshResult>
   suspendWindowStateTracking?: () => void
   resumeWindowStateTracking?: () => void
+  enterPanelWindowPresentation?: (options: {
+    collapsed: boolean
+    hasTransparentReserve: boolean
+  }) => void
+  restoreDesktopWindowPresentation?: () => void
   onStateChanged?: (state: WindowFollowerDebugDto) => void
 }
 
@@ -45,6 +59,17 @@ function deepFreeze<T>(value: T): T {
   if (typeof value !== 'object' || value === null || Object.isFrozen(value)) return value
   for (const nested of Object.values(value)) deepFreeze(nested)
   return Object.freeze(value)
+}
+
+function sameBounds(first: Bounds | null, second: Bounds | null) {
+  return Boolean(
+    first &&
+      second &&
+      first.x === second.x &&
+      first.y === second.y &&
+      first.width === second.width &&
+      first.height === second.height
+  )
 }
 
 export class WindowFollowerPresenter {
@@ -59,7 +84,13 @@ export class WindowFollowerPresenter {
   #waitForExternalActivation = false
   #lastRefreshResult: WindowContextRefreshResult | null = null
   #lastPanelResult: PanelBoundsResult | null = null
+  #contentOffsetX = 0
   #contentPointerInteractive = false
+  #lastAppliedBounds: Bounds | null = null
+  #desiredBounds: Bounds | null = null
+  #stationaryExpandedBounds: Bounds | null = null
+  #expectedProgrammaticBounds: Bounds | null = null
+  #observedWindow: BrowserWindowLike | null = null
   #lastPublishedSignature: string | null = null
   #updatedAt = 0
 
@@ -82,6 +113,7 @@ export class WindowFollowerPresenter {
   stop() {
     if (this.#pollTimer) clearInterval(this.#pollTimer)
     this.#pollTimer = null
+    this.detachWindowMoveListener()
   }
 
   refresh(forcePermissions = false): Promise<void> {
@@ -147,7 +179,7 @@ export class WindowFollowerPresenter {
       panelBounds: this.#mode === 'normal' || !window ? null : window.getBounds(),
       displayBounds: this.dependencies.getAllDisplays().map((display) => ({ ...display.bounds })),
       placement: this.#lastPanelResult?.placement ?? null,
-      contentOffsetX: this.#lastPanelResult?.contentOffsetX ?? 0,
+      contentOffsetX: this.#contentOffsetX,
       lastError: this.#lastRefreshResult?.lastError ?? null,
       updatedAt: this.#updatedAt
     }
@@ -168,9 +200,14 @@ export class WindowFollowerPresenter {
     if (this.#mode === 'normal') {
       this.#normalBounds = window.getBounds()
       this.dependencies.suspendWindowStateTracking?.()
+      this.dependencies.enterPanelWindowPresentation?.({
+        collapsed: this.#collapsed,
+        hasTransparentReserve: false
+      })
     }
 
     this.#mode = 'following'
+    this.#stationaryExpandedBounds = null
     this.#lastTargetBounds = { ...targetBounds }
     this.applyFollowBounds(window)
     window.setAlwaysOnTop(true)
@@ -184,11 +221,18 @@ export class WindowFollowerPresenter {
     this.#mode = 'normal'
     this.#collapsed = false
     this.#lastTargetBounds = null
+    this.#contentOffsetX = 0
+    this.#lastPanelResult = null
+    this.#lastAppliedBounds = null
+    this.#desiredBounds = null
+    this.#stationaryExpandedBounds = null
+    this.#expectedProgrammaticBounds = null
     this.#waitForExternalActivation = true
     if (!window) return false
 
     window.setAlwaysOnTop(false)
     window.setIgnoreMouseEvents(false)
+    this.dependencies.restoreDesktopWindowPresentation?.()
     if (this.#normalBounds) window.setBounds(this.#normalBounds)
     this.dependencies.resumeWindowStateTracking?.()
     window.show()
@@ -204,7 +248,12 @@ export class WindowFollowerPresenter {
     if (this.#mode === 'normal') {
       this.#normalBounds = window.getBounds()
       this.dependencies.suspendWindowStateTracking?.()
+      this.dependencies.enterPanelWindowPresentation?.({
+        collapsed: this.#collapsed,
+        hasTransparentReserve: false
+      })
     }
+    this.enterStationaryMode(window)
     this.#mode = 'fixed'
     window.setAlwaysOnTop(true)
     window.setIgnoreMouseEvents(false)
@@ -219,7 +268,12 @@ export class WindowFollowerPresenter {
     if (this.#mode === 'normal') {
       this.#normalBounds = window.getBounds()
       this.dependencies.suspendWindowStateTracking?.()
+      this.dependencies.enterPanelWindowPresentation?.({
+        collapsed: this.#collapsed,
+        hasTransparentReserve: false
+      })
     }
+    this.enterStationaryMode(window)
     this.#mode = 'detached'
     window.setAlwaysOnTop(false)
     window.setIgnoreMouseEvents(false)
@@ -230,21 +284,32 @@ export class WindowFollowerPresenter {
   setCollapsed(collapsed: boolean): boolean {
     const window = this.resolveWindow()
     if (!window) return false
+    if (!this.#collapsed && collapsed && this.#mode !== 'following') {
+      this.#stationaryExpandedBounds = captureStationaryExpandedBounds(
+        window.getBounds(),
+        this.#contentOffsetX
+      )
+    }
     this.#collapsed = collapsed
 
     if (this.#mode === 'following' && this.#lastTargetBounds) {
       this.applyFollowBounds(window)
+    } else if (this.#mode === 'fixed' || this.#mode === 'detached') {
+      this.applyStationaryBounds(window)
     }
+    this.updatePanelWindowPresentation()
     this.publishStateIfChanged()
     return true
   }
 
   setPanelWidth(width: number): boolean {
     if (!Number.isFinite(width)) return false
-    this.#panelWidth = width
+    this.#panelWidth = normalizePanelWidth(width)
     const window = this.resolveWindow()
     if (window && this.#mode === 'following' && this.#lastTargetBounds) {
       this.applyFollowBounds(window)
+    } else if (window && (this.#mode === 'fixed' || this.#mode === 'detached')) {
+      this.applyStationaryBounds(window)
     }
     this.publishStateIfChanged()
     return true
@@ -261,7 +326,9 @@ export class WindowFollowerPresenter {
 
   private resolveWindow() {
     const window = this.dependencies.getWindow()
-    return window && !window.isDestroyed() ? window : undefined
+    const resolved = window && !window.isDestroyed() ? window : undefined
+    this.observeWindow(resolved)
+    return resolved
   }
 
   private applyFollowBounds(window: BrowserWindowLike) {
@@ -276,7 +343,9 @@ export class WindowFollowerPresenter {
       constrainWindowToVisibleReserve: true
     })
     this.#lastPanelResult = result
-    window.setBounds(result.bounds)
+    this.#contentOffsetX = result.contentOffsetX
+    this.commitPanelBounds(window, result.bounds)
+    this.updatePanelWindowPresentation()
     this.applyMousePassthrough(window)
   }
 
@@ -289,6 +358,96 @@ export class WindowFollowerPresenter {
       decision.ignoreMouseEvents,
       decision.forward ? { forward: true } : undefined
     )
+  }
+
+  private enterStationaryMode(window: BrowserWindowLike) {
+    if (this.#mode === 'fixed' || this.#mode === 'detached') return
+
+    const expandedBounds = captureStationaryExpandedBounds(window.getBounds(), this.#contentOffsetX)
+    this.#stationaryExpandedBounds = expandedBounds
+    this.#contentOffsetX = 0
+    if (this.#lastPanelResult) {
+      this.#lastPanelResult = {
+        ...this.#lastPanelResult,
+        bounds: expandedBounds,
+        contentOffsetX: 0,
+        contentScreenX: expandedBounds.x
+      }
+    }
+    this.applyStationaryBounds(window, expandedBounds)
+    this.applyMousePassthrough(window)
+    this.updatePanelWindowPresentation()
+  }
+
+  private applyStationaryBounds(window: BrowserWindowLike, currentBounds = window.getBounds()) {
+    const expandedBounds =
+      this.#stationaryExpandedBounds ??
+      captureStationaryExpandedBounds(currentBounds, this.#contentOffsetX)
+    this.#stationaryExpandedBounds = expandedBounds
+    const bounds = calculateStationaryPanelBounds({
+      currentBounds,
+      expandedBounds,
+      collapsed: this.#collapsed,
+      panelWidth: this.#panelWidth
+    })
+    this.commitPanelBounds(window, bounds)
+  }
+
+  private commitPanelBounds(window: BrowserWindowLike, bounds: Bounds) {
+    this.#desiredBounds = { ...bounds }
+    if (sameBounds(this.#lastAppliedBounds, bounds)) return
+
+    this.#expectedProgrammaticBounds = { ...bounds }
+    if (
+      this.#lastAppliedBounds?.width === bounds.width &&
+      this.#lastAppliedBounds.height === bounds.height
+    ) {
+      window.setPosition(bounds.x, bounds.y)
+    } else {
+      window.setBounds(bounds)
+    }
+    this.#lastAppliedBounds = { ...bounds }
+  }
+
+  private updatePanelWindowPresentation() {
+    if (this.#mode === 'normal') return
+    this.dependencies.enterPanelWindowPresentation?.({
+      collapsed: this.#collapsed,
+      hasTransparentReserve: this.#contentOffsetX > 0
+    })
+  }
+
+  private observeWindow(window: BrowserWindowLike | undefined) {
+    if (this.#observedWindow === window) return
+    this.detachWindowMoveListener()
+    if (!window) return
+    this.#observedWindow = window
+    window.on('move', this.handleWindowMove)
+  }
+
+  private detachWindowMoveListener() {
+    this.#observedWindow?.removeListener('move', this.handleWindowMove)
+    this.#observedWindow = null
+  }
+
+  private handleWindowMove = () => {
+    const window = this.#observedWindow
+    if (!window || window.isDestroyed()) return
+    const currentBounds = window.getBounds()
+    const stationaryMode = this.#mode === 'fixed' || this.#mode === 'detached'
+    const result = coordinatePanelNativeMove({
+      currentBounds,
+      expectedProgrammaticBounds: this.#expectedProgrammaticBounds,
+      stationaryMode,
+      stationaryExpandedBounds: this.#stationaryExpandedBounds,
+      collapsed: this.#collapsed,
+      lastAppliedBounds: this.#lastAppliedBounds,
+      desiredBounds: this.#desiredBounds
+    })
+    this.#expectedProgrammaticBounds = result.expectedProgrammaticBounds
+    this.#lastAppliedBounds = result.lastAppliedBounds
+    this.#desiredBounds = result.desiredBounds
+    this.#stationaryExpandedBounds = result.stationaryExpandedBounds
   }
 
   private async runRefresh(forcePermissions: boolean) {
