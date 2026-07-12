@@ -60,6 +60,11 @@ const setup = async (options: SetupOptions = {}) => {
   const ollamaStore = {
     initialize: vi.fn().mockResolvedValue(undefined)
   }
+  const windowFollowerDebugStore = reactive({
+    isOpen: false,
+    open: vi.fn(),
+    close: vi.fn()
+  })
 
   vi.doMock('@/stores/ui/pageRouter', () => ({
     usePageRouterStore: () => pageRouter
@@ -81,6 +86,9 @@ const setup = async (options: SetupOptions = {}) => {
   }))
   vi.doMock('@/stores/ollamaStore', () => ({
     useOllamaStore: () => ollamaStore
+  }))
+  vi.doMock('@/stores/windowFollowerDebug', () => ({
+    useWindowFollowerDebugStore: () => windowFollowerDebugStore
   }))
   vi.doMock('@api/StartupClient', () => ({
     createStartupClient: () => ({

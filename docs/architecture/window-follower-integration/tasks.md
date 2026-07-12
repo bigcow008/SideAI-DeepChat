@@ -45,7 +45,7 @@
 
 ## Task 6：验证与交付
 
-- [ ] 执行 `pnpm run format`、`pnpm run i18n`、`pnpm run lint`、`pnpm run typecheck`、`pnpm test`、`pnpm run build`、`git diff --check`。
-- [ ] 重新运行路线边界检查，确认不存在 `vendor/deepchat`、`.env.example`、SideAI 自建聊天符号。
-- [ ] 记录已知官方 Pinia 三项失败与生成资源变化，不把基线问题伪装成融合回归。
+- [x] 执行 `pnpm run format`、`pnpm run i18n`、`pnpm run lint`、`pnpm run typecheck`、`pnpm test`、`pnpm run build`、`git diff --check`。静态检查和构建通过；全量测试 `467` 个文件通过、`11` 个跳过，剩余 `5` 项均在官方 v1.0.9 基线复现。
+- [x] 重新运行 fork-relative 路线边界检查：不存在 `vendor/deepchat`，相对官方 v1.0.9 未新增 SideAI 自建 ChatStore、DeepSeek client/proxy、环境变量 Key 或旧 IPC。官方基线原本跟踪的 `.env.example` 和 DeepSeek Provider 保持不变，避免破坏 DeepChat 原生能力。
+- [x] 记录已知官方 Pinia 三项失败与生成资源变化，不把基线问题伪装成融合回归。另有两个官方主进程既有断言失败；本次修复了新增的 ChatTabView Pinia 装配回归。构建更新 `resources/acp-registry/registry.json`、`resources/model-db/providers.json` 和 `src/renderer/src/lib/icons/icon-collections.generated.ts`。
 - [ ] 用中文 Conventional Commit 提交，推送 `sideai/window-follower-integration`，摘要和推送说明使用中文。
