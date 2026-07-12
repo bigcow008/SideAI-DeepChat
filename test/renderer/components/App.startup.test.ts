@@ -26,6 +26,7 @@ const mountApp = async (options?: {
     | null
   windowFollowerMode?: 'normal' | 'following' | 'fixed' | 'detached'
   windowFollowerContentOffsetX?: number
+  windowFollowerCollapsed?: boolean
 }) => {
   vi.resetModules()
 
@@ -269,7 +270,7 @@ const mountApp = async (options?: {
   const windowFollowerStore = reactive({
     state: {
       mode: options?.windowFollowerMode ?? 'normal',
-      collapsed: false,
+      collapsed: options?.windowFollowerCollapsed ?? false,
       panelWidth: 360,
       automaticAdhesionAvailable: options?.windowFollowerMode !== 'normal',
       snapshot: null,
@@ -286,9 +287,26 @@ const mountApp = async (options?: {
       lastError: null,
       updatedAt: 1_000
     },
+    settings: {
+      automaticAdhesion: true,
+      currentApp: null,
+      excludedApps: []
+    },
+    commandError: null,
     initialize: vi.fn().mockResolvedValue(undefined),
     dispose: vi.fn(),
-    setPointerInteractive: vi.fn().mockResolvedValue(undefined)
+    setPointerInteractive: vi.fn().mockResolvedValue(undefined),
+    setMode: vi.fn().mockResolvedValue(undefined),
+    setCollapsed: vi.fn().mockResolvedValue(undefined),
+    resetWidth: vi.fn().mockResolvedValue(undefined),
+    setWidth: vi.fn().mockResolvedValue(undefined),
+    setAutomaticAdhesion: vi.fn().mockResolvedValue(undefined),
+    openPermissionSettings: vi.fn().mockResolvedValue(undefined),
+    loadSettings: vi.fn().mockResolvedValue(undefined),
+    excludeCurrentApp: vi.fn().mockResolvedValue(undefined),
+    removeExcludedApp: vi.fn().mockResolvedValue(undefined),
+    hide: vi.fn().mockResolvedValue(true),
+    quit: vi.fn().mockResolvedValue(true)
   })
   const toast = vi.fn(() => ({ dismiss: vi.fn() }))
   const ipcOn = vi.fn(() => vi.fn())
@@ -432,6 +450,13 @@ const mountApp = async (options?: {
   vi.doMock('@/stores/windowFollower', () => ({
     useWindowFollowerStore: () => windowFollowerStore
   }))
+  vi.doMock('@/stores/windowFollowerDebug', () => ({
+    useWindowFollowerDebugStore: () => ({
+      isOpen: false,
+      open: vi.fn(),
+      close: vi.fn()
+    })
+  }))
   vi.doMock('@/lib/storeInitializer', () => ({
     initAppStores: vi.fn(),
     useMcpInstallDeeplinkHandler: () => ({
@@ -459,6 +484,22 @@ const mountApp = async (options?: {
         RouterView: true,
         AppBar: true,
         WindowSideBar: true,
+        WindowFollowerToolbar: {
+          template:
+            '<button data-testid="window-follower-toolbar-stub" @click="$emit(\'open-settings\')" />',
+          emits: ['open-settings']
+        },
+        WindowFollowerCollapsedBubble: {
+          template: '<div data-testid="window-follower-bubble-stub" />'
+        },
+        WindowFollowerResizeHandle: {
+          template: '<div data-testid="window-follower-resize-stub" />'
+        },
+        WindowFollowerSettingsPanel: {
+          template:
+            '<button data-testid="window-follower-settings-stub" @click="$emit(\'close\')" />',
+          emits: ['close']
+        },
         UpdateDialog: true,
         MessageDialog: true,
         McpSamplingDialog: true,
@@ -528,6 +569,63 @@ describe('App startup welcome flow', () => {
 
     wrapper.unmount()
     expect(windowFollowerStore.dispose).toHaveBeenCalledOnce()
+  })
+
+  it('does not render panel controls in the normal desktop window', async () => {
+    const { wrapper } = await mountApp({
+      initComplete: true,
+      routeName: 'chat',
+      onboardingStatus: 'completed',
+      windowFollowerMode: 'normal'
+    })
+
+    expect(wrapper.find('[data-testid="window-follower-toolbar-stub"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="window-follower-resize-stub"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="window-follower-bubble-stub"]').exists()).toBe(false)
+  })
+
+  it('renders toolbar and resize controls over the expanded panel surface', async () => {
+    const { wrapper } = await mountApp({
+      initComplete: true,
+      routeName: 'chat',
+      onboardingStatus: 'completed',
+      windowFollowerMode: 'following'
+    })
+
+    expect(wrapper.get('[data-testid="window-follower-toolbar-stub"]')).toBeTruthy()
+    expect(wrapper.get('[data-testid="window-follower-resize-stub"]')).toBeTruthy()
+    expect(wrapper.find('[data-testid="window-follower-bubble-stub"]').exists()).toBe(false)
+  })
+
+  it('keeps the chat surface mounted while the collapsed native window shows only the bubble', async () => {
+    const { wrapper } = await mountApp({
+      initComplete: true,
+      routeName: 'chat',
+      onboardingStatus: 'completed',
+      windowFollowerMode: 'fixed',
+      windowFollowerCollapsed: true
+    })
+
+    expect(wrapper.get('[data-testid="app-root"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="window-follower-surface"]').isVisible()).toBe(false)
+    expect(wrapper.get('[data-testid="window-follower-bubble-stub"]')).toBeTruthy()
+    expect(wrapper.find('[data-testid="window-follower-toolbar-stub"]').exists()).toBe(false)
+  })
+
+  it('opens and closes settings inside the same expanded panel surface', async () => {
+    const { wrapper } = await mountApp({
+      initComplete: true,
+      routeName: 'chat',
+      onboardingStatus: 'completed',
+      windowFollowerMode: 'following'
+    })
+
+    await wrapper.get('[data-testid="window-follower-toolbar-stub"]').trigger('click')
+    expect(wrapper.get('[data-testid="window-follower-settings-stub"]')).toBeTruthy()
+    expect(wrapper.get('[data-testid="app-root"]').exists()).toBe(true)
+
+    await wrapper.get('[data-testid="window-follower-settings-stub"]').trigger('click')
+    expect(wrapper.find('[data-testid="window-follower-settings-stub"]').exists()).toBe(false)
   })
 
   it('routes to welcome when init is incomplete', async () => {

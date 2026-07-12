@@ -45,6 +45,10 @@ import type { GuidedOnboardingStepId } from '@shared/contracts/routes'
 import type { DatabaseRepairSuggestedPayload } from '@shared/presenter'
 import { createWindowClient } from '@api/WindowClient'
 import WindowFollowerSurface from '@/components/windowFollower/WindowFollowerSurface.vue'
+import WindowFollowerToolbar from '@/components/windowFollower/WindowFollowerToolbar.vue'
+import WindowFollowerCollapsedBubble from '@/components/windowFollower/WindowFollowerCollapsedBubble.vue'
+import WindowFollowerResizeHandle from '@/components/windowFollower/WindowFollowerResizeHandle.vue'
+import WindowFollowerSettingsPanel from '@/components/windowFollower/WindowFollowerSettingsPanel.vue'
 import { useWindowFollowerStore } from '@/stores/windowFollower'
 
 const DEV_WELCOME_OVERRIDE_KEY = '__deepchat_dev_force_welcome'
@@ -83,6 +87,8 @@ const modelCheckStore = useModelCheckStore()
 const providerStore = useProviderStore()
 const modelStore = useModelStore()
 const windowFollowerStore = useWindowFollowerStore()
+const windowFollowerSettingsOpen = ref(false)
+const isWindowFollowerPanel = computed(() => windowFollowerStore.state.mode !== 'normal')
 const { t } = useI18n()
 const toasterTheme = computed(() =>
   themeStore.themeMode === 'system' ? (themeStore.isDark ? 'dark' : 'light') : themeStore.themeMode
@@ -102,6 +108,13 @@ watch(
   () => [windowFollowerStore.state.mode, windowFollowerStore.state.contentOffsetX] as const,
   syncWindowFollowerSurface,
   { immediate: true }
+)
+
+watch(
+  () => [windowFollowerStore.state.mode, windowFollowerStore.state.collapsed] as const,
+  ([mode, collapsed]) => {
+    if (mode === 'normal' || collapsed) windowFollowerSettingsOpen.value = false
+  }
 )
 
 const handleWindowFollowerPointerInteractive = (interactive: boolean) => {
@@ -623,14 +636,19 @@ onBeforeUnmount(() => {
   >
     <div
       data-testid="app-root"
-      class="flex h-full flex-col"
+      class="relative flex h-full flex-col"
       :class="isWinMacOS ? 'bg-window-background' : 'bg-background'"
     >
+      <WindowFollowerToolbar
+        v-if="
+          isWindowFollowerPanel &&
+          !windowFollowerStore.state.collapsed &&
+          !windowFollowerSettingsOpen
+        "
+        @open-settings="windowFollowerSettingsOpen = true"
+      />
       <AppBar />
-      <div
-        class="flex h-0 grow flex-row overflow-hidden px-px py-px relative"
-        :dir="langStore.dir"
-      >
+      <div class="flex h-0 grow flex-row overflow-hidden px-px py-px relative" :dir="langStore.dir">
         <div class="flex h-full w-full flex-row">
           <WindowSideBar></WindowSideBar>
 
@@ -663,6 +681,24 @@ onBeforeUnmount(() => {
           }
         "
       />
+      <WindowFollowerResizeHandle
+        v-if="
+          isWindowFollowerPanel &&
+          !windowFollowerStore.state.collapsed &&
+          !windowFollowerSettingsOpen
+        "
+      />
+      <WindowFollowerSettingsPanel
+        v-if="
+          isWindowFollowerPanel &&
+          !windowFollowerStore.state.collapsed &&
+          windowFollowerSettingsOpen
+        "
+        @close="windowFollowerSettingsOpen = false"
+      />
     </div>
+    <template #collapsed>
+      <WindowFollowerCollapsedBubble />
+    </template>
   </WindowFollowerSurface>
 </template>
