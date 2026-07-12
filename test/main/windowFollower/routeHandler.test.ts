@@ -3,6 +3,9 @@ import { dispatchWindowFollowerRoute } from '@/routes/windowFollowerRoutes'
 
 const state = {
   mode: 'normal' as const,
+  collapsed: false,
+  panelWidth: 360,
+  automaticAdhesionAvailable: false,
   snapshot: null,
   permissions: {
     platform: 'macos' as const,

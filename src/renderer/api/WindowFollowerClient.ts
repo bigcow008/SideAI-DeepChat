@@ -9,7 +9,7 @@ import {
   windowFollowerSetPointerInteractiveRoute,
   windowFollowerSetWidthRoute
 } from '@shared/contracts/routes'
-import type { WindowFollowerMode } from '@shared/windowFollower'
+import type { WindowFollowerDebugDto, WindowFollowerMode } from '@shared/windowFollower'
 import {
   windowFollowerStateChangedEvent,
   type DeepchatEventPayload
@@ -19,7 +19,7 @@ import { getDeepchatBridge } from './core'
 export function createWindowFollowerClient(bridge: DeepchatBridge = getDeepchatBridge()) {
   const invokeState = async (routeName: string, input: unknown) => {
     const result = (await bridge.invoke(routeName as never, input as never)) as { state: unknown }
-    return result.state
+    return result.state as WindowFollowerDebugDto
   }
 
   return {

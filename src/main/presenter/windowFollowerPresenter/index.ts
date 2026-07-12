@@ -133,6 +133,10 @@ export class WindowFollowerPresenter {
     const window = this.resolveWindow()
     return {
       mode: this.#mode,
+      collapsed: this.#collapsed,
+      panelWidth: this.#panelWidth,
+      automaticAdhesionAvailable:
+        this.#lastRefreshResult?.automaticAdhesionAvailable ?? false,
       snapshot: this.#lastRefreshResult?.snapshot ?? null,
       permissions: this.#lastRefreshResult?.permissions ?? {
         platform: 'unknown',

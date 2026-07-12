@@ -40,6 +40,9 @@ describe('window follower contracts', () => {
   it('requires unavailable debug state to omit the target snapshot', () => {
     const debug = WindowFollowerDebugDtoSchema.parse({
       mode: 'normal',
+      collapsed: false,
+      panelWidth: 360,
+      automaticAdhesionAvailable: false,
       snapshot: null,
       permissions: snapshot.permissions,
       panelBounds: null,
@@ -50,5 +53,26 @@ describe('window follower contracts', () => {
       updatedAt: 1_020
     })
     expect(debug.snapshot).toBeNull()
+  })
+
+  it('transfers complete panel state and rejects unknown or invalid fields', () => {
+    const state = {
+      mode: 'following' as const,
+      collapsed: false,
+      panelWidth: 360,
+      automaticAdhesionAvailable: true,
+      snapshot,
+      permissions: snapshot.permissions,
+      panelBounds: { x: 1204, y: 0, width: 404, height: 800 },
+      displayBounds: [{ x: 0, y: 0, width: 1200, height: 900 }],
+      placement: 'right' as const,
+      contentOffsetX: 44,
+      lastError: null,
+      updatedAt: 1_020
+    }
+
+    expect(WindowFollowerDebugDtoSchema.parse(state)).toEqual(state)
+    expect(() => WindowFollowerDebugDtoSchema.parse({ ...state, secret: true })).toThrow()
+    expect(() => WindowFollowerDebugDtoSchema.parse({ ...state, panelWidth: 120 })).toThrow()
   })
 })

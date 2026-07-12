@@ -3,6 +3,9 @@ import { describe, expect, it, vi } from 'vitest'
 
 const state = {
   mode: 'following',
+  collapsed: false,
+  panelWidth: 360,
+  automaticAdhesionAvailable: true,
   snapshot: {
     app: { name: 'Code', stableKey: 'bundleId:com.microsoft.VSCode', processId: 42 },
     window: {

@@ -46,6 +46,9 @@ export type WindowContextSnapshot = z.infer<typeof WindowContextSnapshotSchema>
 
 export const WindowFollowerDebugDtoSchema = z.strictObject({
   mode: WindowFollowerModeSchema,
+  collapsed: z.boolean(),
+  panelWidth: z.number().finite().min(230),
+  automaticAdhesionAvailable: z.boolean(),
   snapshot: WindowContextSnapshotSchema.nullable(),
   permissions: WindowContextSnapshotSchema.shape.permissions,
   panelBounds: BoundsSchema.nullable(),
