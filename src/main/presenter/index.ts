@@ -2,7 +2,7 @@ import logger from '@shared/logger'
 import { performance } from 'node:perf_hooks'
 import path from 'path'
 import { DialogPresenter } from './dialogPresenter/index'
-import { ipcMain, app } from 'electron'
+import { ipcMain, app, screen, shell, systemPreferences } from 'electron'
 import { WindowPresenter } from './windowPresenter'
 import { ShortcutPresenter } from './shortcutPresenter'
 import {
@@ -93,6 +93,13 @@ import {
 } from '@/routes/publishDeepchatEvent'
 import { StartupWorkloadCoordinator } from './startupWorkloadCoordinator'
 import type { StartupWorkloadTaskContext } from './startupWorkloadCoordinator'
+import { WindowFollowerPresenter } from './windowFollowerPresenter'
+import {
+  createDesktopPermissionService,
+  type DesktopPermissionService
+} from '@/windowFollower/desktopPermissionService'
+import { GetWindowsAdapter } from '@/windowFollower/getWindowsAdapter'
+import { WindowContextService } from '@/windowFollower/windowContextService'
 
 type MemoryMaintenanceConfigChangeTarget = Pick<
   MemoryPresenter,
@@ -115,6 +122,8 @@ export class Presenter implements IPresenter {
   private static instance: Presenter
 
   windowPresenter: IWindowPresenter
+  windowFollowerPresenter: WindowFollowerPresenter
+  desktopPermissionService: DesktopPermissionService
   sqlitePresenter: ISQLitePresenter
   llmproviderPresenter: ILlmProviderPresenter
   configPresenter: IConfigPresenter
@@ -183,10 +192,36 @@ export class Presenter implements IPresenter {
       new StartupWorkloadCoordinator()
 
     // Initialize presenters and their dependencies.
-    this.windowPresenter = new WindowPresenter(
+    const windowPresenter = new WindowPresenter(
       this.configPresenter,
       this.startupWorkloadCoordinator
     )
+    this.windowPresenter = windowPresenter
+    this.desktopPermissionService = createDesktopPermissionService({
+      platform: process.platform,
+      isTrustedAccessibilityClient: (prompt) =>
+        systemPreferences.isTrustedAccessibilityClient(prompt),
+      getMediaAccessStatus: (mediaType) => systemPreferences.getMediaAccessStatus(mediaType),
+      openExternal: (url) => shell.openExternal(url)
+    })
+    const getWindowsAdapter = new GetWindowsAdapter()
+    const windowContextService = new WindowContextService({
+      permissionService: this.desktopPermissionService,
+      readActiveWindow: async (permissions) =>
+        (await getWindowsAdapter.readActiveWindow(permissions)) ?? null,
+      getPreference: () =>
+        this.configPresenter.getSetting<boolean>('sideai.windowFollower.automaticAdhesion') ?? true,
+      ownProcessId: process.pid,
+      ownAppName: app.getName()
+    })
+    this.windowFollowerPresenter = new WindowFollowerPresenter({
+      getWindow: () => windowPresenter.getPrimaryWindow(),
+      getDisplayMatching: (bounds) => screen.getDisplayMatching(bounds),
+      getAllDisplays: () => screen.getAllDisplays(),
+      refreshContext: (forcePermissions) => windowContextService.refresh(forcePermissions),
+      suspendWindowStateTracking: () => windowPresenter.suspendPrimaryWindowStateTracking(),
+      resumeWindowStateTracking: () => windowPresenter.resumePrimaryWindowStateTracking()
+    })
     this.tabPresenter = new TabPresenter(this.windowPresenter)
     this.llmproviderPresenter = new LLMProviderPresenter(
       this.configPresenter,
@@ -972,6 +1007,7 @@ export class Presenter implements IPresenter {
   }
 
   async destroy(): Promise<void> {
+    this.windowFollowerPresenter.stop()
     try {
       await this.runDestroyStep('cronJobs.stop', () => this.cronJobs.stop())
     } catch (error) {

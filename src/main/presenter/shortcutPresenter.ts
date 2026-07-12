@@ -297,7 +297,7 @@ export class ShortcutPresenter implements IShortcutPresenter {
 
     if (this.shortcutKeys.ShowHideWindow) {
       globalShortcut.register(this.shortcutKeys.ShowHideWindow, () => {
-        eventBus.sendToMain(TRAY_EVENTS.SHOW_HIDDEN_WINDOW)
+        eventBus.sendToMain(TRAY_EVENTS.SHOW_HIDDEN_WINDOW, true)
       })
     }
   }

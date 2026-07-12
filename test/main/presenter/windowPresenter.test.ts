@@ -40,6 +40,36 @@ describe('WindowPresenter', () => {
     ;(BrowserWindow as any).fromId = originalBrowserWindowFromId
   })
 
+  it('returns the tracked main BrowserWindow even when another window is focused', async () => {
+    const { WindowPresenter } = await import('@/presenter/windowPresenter')
+    const presenter = new WindowPresenter({
+      getContentProtectionEnabled: vi.fn(() => false)
+    } as any)
+    const mainWindow = { id: 7, isDestroyed: vi.fn(() => false) }
+    ;(presenter as any).mainWindowId = 7
+    ;(BrowserWindow as any).fromId = vi.fn(() => mainWindow)
+
+    expect(presenter.getPrimaryWindow()).toBe(mainWindow)
+  })
+
+  it('suspends persisted state while the main window uses panel bounds', async () => {
+    const { WindowPresenter } = await import('@/presenter/windowPresenter')
+    const presenter = new WindowPresenter({
+      getContentProtectionEnabled: vi.fn(() => false)
+    } as any)
+    const mainWindow = { id: 7, isDestroyed: vi.fn(() => false) }
+    const stateManager = { manage: vi.fn(), unmanage: vi.fn() }
+    ;(presenter as any).mainWindowId = 7
+    ;(presenter as any).mainWindowStateManager = stateManager
+    ;(BrowserWindow as any).fromId = vi.fn(() => mainWindow)
+
+    presenter.suspendPrimaryWindowStateTracking()
+    presenter.resumePrimaryWindowStateTracking()
+
+    expect(stateManager.unmanage).toHaveBeenCalledOnce()
+    expect(stateManager.manage).toHaveBeenCalledWith(mainWindow)
+  })
+
   it('queues settings events until the settings renderer reports ready', async () => {
     const { WindowPresenter } = await import('@/presenter/windowPresenter')
     const presenter = new WindowPresenter({

@@ -18,16 +18,16 @@
 ## Task 2：权限、get-windows 与打包
 
 - [x] 先写权限 TTL、显式刷新、系统设置导航和撤销降级失败测试。
-- [ ] 实现 macOS permission service；service 已完成，缺失权限时 WindowContextService 输出 `unavailable` 的编排留在 Task 3。
+- [x] 实现 macOS permission service；缺失权限时 WindowContextService 输出 `unavailable`，不读取旧目标。
 - [x] 先写 GetWindowsAdapter 失败测试，再封装 `get-windows`，确保 renderer/Agent 不直接导入其类型。
 - [x] 在 `electron-builder.yml` `asarUnpack` 增加 `**/node_modules/get-windows/**/*`，更新构建配置测试。
 
 ## Task 3：Presenter 与同一 BrowserWindow
 
-- [ ] 先写 presenter 的模式转换测试：普通 -> 自动跟随 -> 普通、固定、脱吸附、折叠、隐藏/恢复和窗口销毁。
-- [ ] 实现 `WindowFollowerPresenter`，只通过窗口适配器调用 `setBounds`、`setAlwaysOnTop`、`setIgnoreMouseEvents`、`showInactive` 和普通 `show`。
-- [ ] 在 `WindowPresenter` 创建/激活/快捷键/设置路径中装配 presenter，确认 webContents ID 不变。
-- [ ] 验证普通大窗口状态单独持久化，贴边或屏幕外位置不写入 `electron-window-state`。
+- [x] 先写 presenter 的模式转换测试：普通 -> 自动跟随 -> 普通、固定、脱吸附、折叠、Dock/快捷键恢复和撤权降级。
+- [x] 实现 `WindowFollowerPresenter`，只通过窗口适配器调用 `setBounds`、`setAlwaysOnTop`、`setIgnoreMouseEvents`、`showInactive` 和普通 `show`。
+- [x] 在 `WindowPresenter` 创建/激活/快捷键路径中装配 presenter，确认 webContents ID 不变；设置入口随 Task 4 typed route 一并接入。
+- [x] 验证普通大窗口状态单独持久化，进入贴边前 `unmanage()`，恢复普通边界后 `manage()`，贴边或屏幕外位置不写入 `electron-window-state`。
 
 ## Task 4：typed route/event/client 与调试页
 

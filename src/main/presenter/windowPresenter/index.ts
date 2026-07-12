@@ -59,6 +59,8 @@ export class WindowPresenter implements IWindowPresenter {
   private focusedWindowId: number | null = null
   // Main window ID
   private mainWindowId: number | null = null
+  private mainWindowStateManager: ReturnType<typeof windowStateManager> | null = null
+  private mainWindowStateTrackingSuspended = false
   // Tracks close-to-hide separately from the native macOS Hide command.
   private mainWindowHiddenByClose = false
   private floatingChatWindow: FloatingChatWindow | null = null
@@ -156,6 +158,27 @@ export class WindowPresenter implements IWindowPresenter {
     }
     const allWindows = this.getAllWindows()
     return allWindows.length > 0 && !allWindows[0].isDestroyed() ? allWindows[0] : undefined
+  }
+
+  /** Returns the original DeepChat main window regardless of auxiliary-window focus. */
+  getPrimaryWindow(): BrowserWindow | undefined {
+    if (this.mainWindowId == null) return undefined
+    const window = BrowserWindow.fromId(this.mainWindowId)
+    return window && !window.isDestroyed() ? window : undefined
+  }
+
+  suspendPrimaryWindowStateTracking(): void {
+    if (!this.mainWindowStateManager || this.mainWindowStateTrackingSuspended) return
+    this.mainWindowStateManager.unmanage()
+    this.mainWindowStateTrackingSuspended = true
+  }
+
+  resumePrimaryWindowStateTracking(): void {
+    if (!this.mainWindowStateManager || !this.mainWindowStateTrackingSuspended) return
+    const window = this.getPrimaryWindow()
+    if (!window) return
+    this.mainWindowStateManager.manage(window)
+    this.mainWindowStateTrackingSuspended = false
   }
 
   /**
@@ -926,6 +949,8 @@ export class WindowPresenter implements IWindowPresenter {
       this.windows.delete(windowIdBeingClosed) // 从 Map 中移除
       if (windowIdBeingClosed === this.mainWindowId) {
         this.mainWindowHiddenByClose = false
+        this.mainWindowStateManager = null
+        this.mainWindowStateTrackingSuspended = false
       }
       managedWindowState.unmanage() // 停止管理窗口状态
       eventBus.sendToMain(WINDOW_EVENTS.WINDOW_CLOSED, windowIdBeingClosed)
@@ -972,6 +997,7 @@ export class WindowPresenter implements IWindowPresenter {
 
     if (this.mainWindowId == null) {
       this.mainWindowId = windowId // 如果这是第一个窗口，设置为主窗口 ID
+      this.mainWindowStateManager = managedWindowState
     }
     return windowId // 返回新创建窗口的 ID
   }

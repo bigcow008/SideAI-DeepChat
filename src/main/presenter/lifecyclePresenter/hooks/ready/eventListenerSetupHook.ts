@@ -26,6 +26,8 @@ export const eventListenerSetupHook: LifecycleHook = {
       throw new Error('eventListenerSetupHook: Presenter not initialized')
     }
 
+    presenter.windowFollowerPresenter.start()
+
     // Add F12 DevTools support for new windows in development, ignore CmdOrControl + R in production
     app.on('browser-window-created', (_, window) => {
       optimizer.watchWindowShortcuts(window)
@@ -34,6 +36,7 @@ export const eventListenerSetupHook: LifecycleHook = {
     // Restore a main window hidden by close-to-tray when the Dock activates the app.
     // Keep native macOS Hide behavior intact by restoring only explicitly tracked close events.
     app.on('activate', function () {
+      presenter.windowFollowerPresenter.returnToNormal(true)
       if (presenter.windowPresenter.restoreMainWindowHiddenByClose()) {
         return
       }

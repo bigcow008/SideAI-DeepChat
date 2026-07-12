@@ -141,7 +141,7 @@ describe('ShortcutPresenter', () => {
     ).toBe(false)
 
     registerMock.mock.calls[0][1]()
-    expect(eventBusMock.sendToMain).toHaveBeenCalledWith(TRAY_EVENTS.SHOW_HIDDEN_WINDOW)
+    expect(eventBusMock.sendToMain).toHaveBeenCalledWith(TRAY_EVENTS.SHOW_HIDDEN_WINDOW, true)
   })
 
   it('does not send sidebar or workspace events when the focused window is not active', async () => {
