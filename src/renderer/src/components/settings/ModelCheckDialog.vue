@@ -2,7 +2,7 @@
   <Dialog v-model:open="isOpen" @update:open="onOpenChange">
     <DialogContent
       data-testid="model-check-dialog"
-      class="sm:max-w-[500px] max-h-[80vh] overflow-hidden flex flex-col"
+      class="window-follower-viewport-bound sm:max-w-[500px] max-h-[80vh] overflow-hidden flex flex-col"
     >
       <DialogHeader>
         <DialogTitle>{{ t('settings.provider.dialog.modelCheck.title') }}</DialogTitle>
@@ -56,7 +56,10 @@
 
         <!-- 模型选择表单 -->
         <div v-if="!result && hasModels" class="grid gap-4 py-4">
-          <div class="grid grid-cols-4 items-center gap-4">
+          <div
+            data-testid="model-check-form"
+            class="window-follower-single-column grid grid-cols-4 items-center gap-4"
+          >
             <Label for="model" class="text-right">
               {{ t('settings.provider.dialog.modelCheck.model') }}
             </Label>
@@ -66,7 +69,7 @@
                   :placeholder="t('settings.provider.dialog.modelCheck.modelPlaceholder')"
                 />
               </SelectTrigger>
-              <SelectContent class="max-h-60">
+              <SelectContent class="max-h-60 [--window-follower-portal-max-height:15rem]">
                 <SelectItem
                   v-for="model in availableModels"
                   :key="model.id"

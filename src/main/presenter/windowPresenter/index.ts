@@ -202,6 +202,7 @@ export class WindowPresenter implements IWindowPresenter {
     window.setFullScreenable(false)
     if (process.platform === 'darwin') {
       window.setWindowButtonVisibility(false)
+      window.setVibrancy(null)
     }
     window.setHasShadow(!options.collapsed && !options.hasTransparentReserve)
     window.setSkipTaskbar(true)
@@ -219,6 +220,7 @@ export class WindowPresenter implements IWindowPresenter {
     window.setFullScreenable(true)
     if (process.platform === 'darwin') {
       window.setWindowButtonVisibility(true)
+      window.setVibrancy('under-window')
     }
     window.setHasShadow(true)
     window.setVisibleOnAllWorkspaces(false)

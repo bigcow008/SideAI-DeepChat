@@ -122,6 +122,7 @@ describe('WindowPresenter', () => {
       setMaximizable: vi.fn(),
       setFullScreenable: vi.fn(),
       setWindowButtonVisibility: vi.fn(),
+      setVibrancy: vi.fn(),
       setHasShadow: vi.fn(),
       setSkipTaskbar: vi.fn(),
       setVisibleOnAllWorkspaces: vi.fn()
@@ -140,6 +141,7 @@ describe('WindowPresenter', () => {
     expect(mainWindow.setMaximizable).toHaveBeenCalledWith(false)
     expect(mainWindow.setFullScreenable).toHaveBeenCalledWith(false)
     expect(mainWindow.setWindowButtonVisibility).toHaveBeenCalledWith(false)
+    expect(mainWindow.setVibrancy).toHaveBeenCalledWith(null)
     expect(mainWindow.setHasShadow).toHaveBeenCalledWith(false)
     expect(mainWindow.setSkipTaskbar).toHaveBeenCalledWith(true)
     expect(mainWindow.setVisibleOnAllWorkspaces).toHaveBeenCalledWith(true, {
@@ -161,6 +163,7 @@ describe('WindowPresenter', () => {
       setMaximizable: vi.fn(),
       setFullScreenable: vi.fn(),
       setWindowButtonVisibility: vi.fn(),
+      setVibrancy: vi.fn(),
       setHasShadow: vi.fn(),
       setSkipTaskbar: vi.fn(),
       setHiddenInMissionControl: vi.fn(),
@@ -177,6 +180,7 @@ describe('WindowPresenter', () => {
     expect(mainWindow.setMaximizable).toHaveBeenCalledWith(true)
     expect(mainWindow.setFullScreenable).toHaveBeenCalledWith(true)
     expect(mainWindow.setWindowButtonVisibility).toHaveBeenCalledWith(true)
+    expect(mainWindow.setVibrancy).toHaveBeenCalledWith('under-window')
     expect(mainWindow.setHasShadow).toHaveBeenCalledWith(true)
     expect(mainWindow.setSkipTaskbar).toHaveBeenCalledWith(false)
     expect(mainWindow.setHiddenInMissionControl).toHaveBeenCalledWith(false)

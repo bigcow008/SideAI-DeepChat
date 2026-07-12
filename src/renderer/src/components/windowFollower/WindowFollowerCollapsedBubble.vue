@@ -4,8 +4,8 @@
       data-testid="window-follower-bubble-expand"
       type="button"
       class="window-follower-bubble-expand"
-      aria-label="展开贴边面板"
-      title="展开贴边面板"
+      :aria-label="t('chat.windowFollower.bubble.expand')"
+      :title="t('chat.windowFollower.bubble.expand')"
       @click="expand"
     >
       <span class="window-follower-bubble-core" aria-hidden="true" />
@@ -14,8 +14,10 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { useWindowFollowerStore } from '@/stores/windowFollower'
 
+const { t } = useI18n()
 const store = useWindowFollowerStore()
 const expand = () => {
   void store.setCollapsed(false).catch(() => {})

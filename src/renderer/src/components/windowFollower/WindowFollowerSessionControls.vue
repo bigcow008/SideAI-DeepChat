@@ -20,13 +20,13 @@
             variant="ghost"
             size="icon"
             class="window-follower-session-button"
-            :aria-label="t('common.newChat')"
+            :aria-label="t('chat.windowFollower.session.newChat')"
             @click="newChat"
           >
             <Icon icon="lucide:square-pen" class="size-4" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent>{{ t('common.newChat') }}</TooltipContent>
+        <TooltipContent>{{ t('chat.windowFollower.session.newChat') }}</TooltipContent>
       </Tooltip>
 
       <Tooltip>
@@ -37,14 +37,14 @@
             variant="ghost"
             size="icon"
             class="window-follower-session-button"
-            :aria-label="t('common.history')"
+            :aria-label="t('chat.windowFollower.history.title')"
             :aria-pressed="historyOpen"
             @click="emit('toggle-history')"
           >
             <Icon icon="lucide:history" class="size-4" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent>{{ t('common.history') }}</TooltipContent>
+        <TooltipContent>{{ t('chat.windowFollower.history.title') }}</TooltipContent>
       </Tooltip>
 
       <Tooltip>
@@ -55,13 +55,13 @@
             variant="ghost"
             size="icon"
             class="window-follower-session-button"
-            aria-label="恢复大窗口"
+            :aria-label="t('chat.windowFollower.session.restoreWindow')"
             @click="restoreWindow"
           >
             <Icon icon="lucide:panel-top-open" class="size-4" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent>恢复大窗口</TooltipContent>
+        <TooltipContent>{{ t('chat.windowFollower.session.restoreWindow') }}</TooltipContent>
       </Tooltip>
     </div>
   </TooltipProvider>

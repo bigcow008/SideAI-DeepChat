@@ -1,6 +1,6 @@
 <template>
   <TooltipProvider :delay-duration="200" :ignore-non-keyboard-focus="true">
-    <nav class="window-follower-toolbar" aria-label="贴边面板操作">
+    <nav class="window-follower-toolbar" :aria-label="t('chat.windowFollower.toolbar.ariaLabel')">
       <Tooltip>
         <TooltipTrigger as-child>
           <Button
@@ -10,7 +10,11 @@
             size="icon"
             class="window-follower-toolbar-button"
             :aria-expanded="groupExpanded"
-            aria-label="展开或收起工具栏"
+            :aria-label="
+              groupExpanded
+                ? t('chat.windowFollower.toolbar.collapse')
+                : t('chat.windowFollower.toolbar.expand')
+            "
             @click="groupExpanded = !groupExpanded"
           >
             <Icon
@@ -19,7 +23,13 @@
             />
           </Button>
         </TooltipTrigger>
-        <TooltipContent>{{ groupExpanded ? '收起工具栏' : '展开工具栏' }}</TooltipContent>
+        <TooltipContent>
+          {{
+            groupExpanded
+              ? t('chat.windowFollower.toolbar.collapse')
+              : t('chat.windowFollower.toolbar.expand')
+          }}
+        </TooltipContent>
       </Tooltip>
 
       <template v-if="groupExpanded">
@@ -60,6 +70,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Icon } from '@iconify/vue'
 import { Button } from '@shadcn/components/ui/button'
 import {
@@ -73,6 +84,7 @@ import { useWindowFollowerStore } from '@/stores/windowFollower'
 type ToolbarCommand = 'collapse' | 'pin' | 'detach' | 'reset-width' | 'settings' | 'hide' | 'quit'
 
 const emit = defineEmits<{ 'open-settings': [] }>()
+const { t } = useI18n()
 const store = useWindowFollowerStore()
 const groupExpanded = ref(false)
 
@@ -80,43 +92,49 @@ const commands = computed(() => [
   {
     id: 'collapse' as const,
     icon: 'lucide:panel-right-close',
-    label: '折叠为气泡',
+    label: t('chat.windowFollower.toolbar.collapsePanel'),
     active: false
   },
   {
     id: 'pin' as const,
     icon: store.state.mode === 'fixed' ? 'lucide:pin-off' : 'lucide:pin',
-    label: store.state.mode === 'fixed' ? '取消固定' : '固定',
+    label:
+      store.state.mode === 'fixed'
+        ? t('chat.windowFollower.toolbar.unpin')
+        : t('chat.windowFollower.toolbar.pin'),
     active: store.state.mode === 'fixed'
   },
   {
     id: 'detach' as const,
     icon: store.state.mode === 'detached' ? 'lucide:magnet' : 'lucide:unlink',
-    label: store.state.mode === 'detached' ? '恢复吸附' : '脱吸附',
+    label:
+      store.state.mode === 'detached'
+        ? t('chat.windowFollower.toolbar.reattach')
+        : t('chat.windowFollower.toolbar.detach'),
     active: store.state.mode === 'detached'
   },
   {
     id: 'reset-width' as const,
     icon: 'lucide:panel-right-dashed',
-    label: '恢复默认宽度',
+    label: t('chat.windowFollower.toolbar.resetWidth'),
     active: false
   },
   {
     id: 'settings' as const,
     icon: 'lucide:ellipsis',
-    label: '设置',
+    label: t('chat.windowFollower.toolbar.settings'),
     active: false
   },
   {
     id: 'hide' as const,
     icon: 'lucide:eye-off',
-    label: '隐藏',
+    label: t('chat.windowFollower.toolbar.hide'),
     active: false
   },
   {
     id: 'quit' as const,
     icon: 'lucide:power',
-    label: '退出',
+    label: t('chat.windowFollower.toolbar.quit'),
     active: false
   }
 ])

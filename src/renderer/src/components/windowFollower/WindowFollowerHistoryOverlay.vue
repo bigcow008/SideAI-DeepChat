@@ -4,20 +4,20 @@
     class="window-follower-history-overlay"
     role="dialog"
     aria-modal="true"
-    :aria-label="t('common.history')"
+    :aria-label="t('chat.windowFollower.history.title')"
   >
     <button
       data-testid="window-follower-history-backdrop"
       type="button"
       class="window-follower-history-backdrop"
-      :aria-label="t('common.close')"
+      :aria-label="t('chat.windowFollower.history.close')"
       @click="emit('close')"
     />
 
     <section data-testid="window-follower-history-panel" class="window-follower-history-panel">
       <header class="window-follower-history-header">
         <Icon icon="lucide:history" class="size-4" />
-        <h2>{{ t('common.history') }}</h2>
+        <h2>{{ t('chat.windowFollower.history.title') }}</h2>
       </header>
 
       <div
@@ -26,12 +26,12 @@
         @scroll.passive="handleScroll"
       >
         <div v-if="sessionStore.loading" class="window-follower-history-state">
-          {{ t('common.loading') }}
+          {{ t('chat.windowFollower.history.loading') }}
         </div>
 
         <template v-else>
           <section v-if="pinnedSessions.length" class="window-follower-history-group">
-            <h3>{{ t('chat.sidebar.pinned') }}</h3>
+            <h3>{{ t('chat.windowFollower.history.pinned') }}</h3>
             <button
               v-for="session in pinnedSessions"
               :key="session.id"
@@ -75,12 +75,12 @@
           </section>
 
           <div v-if="isEmpty" class="window-follower-history-state">
-            <strong>{{ t('chat.sidebar.emptyTitle') }}</strong>
-            <span>{{ t('chat.sidebar.emptyDescription') }}</span>
+            <strong>{{ t('chat.windowFollower.history.emptyTitle') }}</strong>
+            <span>{{ t('chat.windowFollower.history.emptyDescription') }}</span>
           </div>
 
           <div v-if="sessionStore.loadingMore" class="window-follower-history-state">
-            {{ t('common.loading') }}
+            {{ t('chat.windowFollower.history.loading') }}
           </div>
         </template>
       </div>

@@ -4,8 +4,8 @@
     class="window-follower-resize-handle"
     role="separator"
     aria-orientation="vertical"
-    aria-label="调整贴边面板宽度"
-    title="拖动调整宽度"
+    :aria-label="t('chat.windowFollower.resize.label')"
+    :title="t('chat.windowFollower.resize.title')"
     @pointerdown="handlePointerDown"
     @pointermove="handlePointerMove"
     @pointerup="finishResize"
@@ -15,6 +15,7 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useWindowFollowerStore } from '@/stores/windowFollower'
 
 type ResizeState = {
@@ -23,6 +24,7 @@ type ResizeState = {
   pointerId: number
 }
 
+const { t } = useI18n()
 const store = useWindowFollowerStore()
 let resizeState: ResizeState | null = null
 let pendingWidth: number | null = null

@@ -947,6 +947,73 @@ declare module 'vue-i18n' {
         second: string
       }
     }
+    windowFollower: {
+      toolbar: {
+        ariaLabel: string
+        expand: string
+        collapse: string
+        collapsePanel: string
+        pin: string
+        unpin: string
+        detach: string
+        reattach: string
+        resetWidth: string
+        settings: string
+        hide: string
+        quit: string
+      }
+      bubble: {
+        expand: string
+      }
+      resize: {
+        label: string
+        title: string
+      }
+      session: {
+        newChat: string
+        restoreWindow: string
+      }
+      history: {
+        title: string
+        close: string
+        loading: string
+        pinned: string
+        emptyTitle: string
+        emptyDescription: string
+      }
+      settings: {
+        ariaLabel: string
+        back: string
+        title: string
+        behaviorHeading: string
+        automaticAdhesion: string
+        panelWidth: string
+        permissionsHeading: string
+        accessibility: string
+        screenRecording: string
+        exclusionsHeading: string
+        excludeCurrentApp: string
+        restore: string
+        noExcludedApps: string
+        diagnosticsHeading: string
+        debugTitle: string
+        debugDescription: string
+        adhesion: {
+          paused: string
+          available: string
+          waitingPermissions: string
+        }
+        permission: {
+          granted: string
+          missing: string
+          notApplicable: string
+          checking: string
+        }
+      }
+      errors: {
+        commandFailed: string
+      }
+    }
     memory: {
       toolbar: string
       status: {
@@ -1025,6 +1092,84 @@ declare module 'vue-i18n' {
         rrfKHint: string
         similarityThresholdHint: string
         weightHint: string
+      }
+      redesign: {
+        tabMemories: string
+        tabPersona: string
+        tabDiagnostics: string
+        statusEnabled: string
+        statusDisabled: string
+        memoryCount: string
+        embeddingModel: string
+        embeddingMissing: string
+        embeddingMissingHint: string
+        enableMemory: string
+        configure: string
+        emptyTitle: string
+        disabledTitle: string
+        emptyDescription: string
+        disabledDescription: string
+        addMemory: string
+        configTitle: string
+        configDescription: string
+        relativeWeightsHint: string
+        configLoadFailed: string
+        configSaveFailed: string
+        detailTitle: string
+        createdAt: string
+        unsavedTitle: string
+        unsavedDescription: string
+        discardChanges: string
+        contentLabel: string
+        contentPlaceholder: string
+        categoryLabel: string
+        importanceLabel: string
+        kindLine: string
+        statusLine: string
+        archivedEditHint: string
+        editRejected: string
+        sourceConversation: string
+        sourceManual: string
+        lifecycleDetails: string
+        archive: string
+        includeArchived: string
+        archivedMatches: string
+        refresh: string
+        inboxTitle: string
+        inboxDescription: string
+        conflictBadge: string
+        personaDraftBadge: string
+        conflictSectionTitle: string
+        conflictExisting: string
+        conflictNew: string
+        personaDraftSectionTitle: string
+        diagnosticsTitle: string
+        diagnosticsDescription: string
+        pipelineTitle: string
+        archiveCandidatesTitle: string
+        archiveCandidatesDescription: string
+        recentFailuresTitle: string
+        activityTitle: string
+        dangerZoneTitle: string
+        dangerZoneDescription: string
+        audit: {
+          'memory-add': string
+          'memory-archive': string
+          'memory-restore': string
+          'memory-delete': string
+          'memory-maintenance-llm': string
+          'memory-reflect': string
+          'persona-evolve': string
+          'memory-repair': string
+          'memory-forget': string
+          'memory-manual-edit': string
+          'memory-challenge-resolved': string
+          'memory-persona-approve': string
+          'memory-persona-reject': string
+          'memory-persona-rollback': string
+          'memory-persona-anchor': string
+          'memory-reindex': string
+        }
       }
     }
     loading: string
@@ -2037,6 +2182,8 @@ declare module 'vue-i18n' {
           byCategory: string
           byStatus: string
           pipeline: string
+          reindex: string
+          reindexing: string
           quality: string
           topAccessed: string
           noTopAccessed: string
@@ -2905,6 +3052,15 @@ declare module 'vue-i18n' {
           custom: string
         }
       }
+      authRequired: string
+      authenticate: string
+      authFailed: string
+      authCallbackTitle: string
+      authCallbackDescription: string
+      authCallbackPlaceholder: string
+      completeAuthentication: string
+      saveSuccess: string
+      saveFailed: string
     }
     cronJobs: {
       title: string

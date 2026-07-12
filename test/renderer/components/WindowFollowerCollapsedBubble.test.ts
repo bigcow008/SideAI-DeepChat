@@ -10,6 +10,10 @@ vi.mock('@/stores/windowFollower', () => ({
   useWindowFollowerStore: () => store
 }))
 
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({ t: (key: string) => key })
+}))
+
 describe('WindowFollowerCollapsedBubble', () => {
   beforeEach(() => vi.clearAllMocks())
 

@@ -1,5 +1,8 @@
 <template>
-  <section class="window-follower-settings" aria-label="贴边面板设置">
+  <section
+    class="window-follower-settings"
+    :aria-label="t('chat.windowFollower.settings.ariaLabel')"
+  >
     <header class="window-follower-settings-header">
       <Button
         data-testid="window-follower-settings-back"
@@ -7,35 +10,37 @@
         variant="ghost"
         size="icon"
         class="size-9 shrink-0"
-        aria-label="返回贴边面板"
+        :aria-label="t('chat.windowFollower.settings.back')"
         @click="emit('close')"
       >
         <Icon icon="lucide:arrow-left" class="size-4" />
       </Button>
-      <h1>贴边设置</h1>
+      <h1>{{ t('chat.windowFollower.settings.title') }}</h1>
     </header>
 
     <div class="window-follower-settings-body">
       <section class="settings-section" aria-labelledby="window-follower-behavior-heading">
-        <h2 id="window-follower-behavior-heading">吸附与宽度</h2>
+        <h2 id="window-follower-behavior-heading">
+          {{ t('chat.windowFollower.settings.behaviorHeading') }}
+        </h2>
 
         <div class="settings-row">
           <div class="min-w-0">
-            <strong>自动贴边</strong>
+            <strong>{{ t('chat.windowFollower.settings.automaticAdhesion') }}</strong>
             <span>{{ automaticAdhesionStatus }}</span>
           </div>
           <Switch
             data-testid="window-follower-automatic-adhesion"
             :model-value="store.settings.automaticAdhesion"
             :disabled="busy"
-            aria-label="自动贴边"
+            :aria-label="t('chat.windowFollower.settings.automaticAdhesion')"
             @update:model-value="setAutomaticAdhesion"
           />
         </div>
 
         <div class="settings-stack">
           <div class="settings-row-heading">
-            <strong>面板宽度</strong>
+            <strong>{{ t('chat.windowFollower.settings.panelWidth') }}</strong>
             <span>{{ store.state.panelWidth }} px</span>
           </div>
           <Slider
@@ -45,14 +50,16 @@
             :max="720"
             :step="1"
             :disabled="busy"
-            aria-label="面板宽度"
+            :aria-label="t('chat.windowFollower.settings.panelWidth')"
             @update:model-value="setPanelWidth"
           />
         </div>
       </section>
 
       <section class="settings-section" aria-labelledby="window-follower-permissions-heading">
-        <h2 id="window-follower-permissions-heading">系统权限</h2>
+        <h2 id="window-follower-permissions-heading">
+          {{ t('chat.windowFollower.settings.permissionsHeading') }}
+        </h2>
         <button
           data-testid="window-follower-permission-accessibility"
           type="button"
@@ -61,7 +68,7 @@
           @click="openPermission('accessibility')"
         >
           <span>
-            <strong>辅助功能</strong>
+            <strong>{{ t('chat.windowFollower.settings.accessibility') }}</strong>
             <small>{{ permissionLabel(store.state.permissions.accessibility) }}</small>
           </span>
           <Icon icon="lucide:external-link" class="size-4" />
@@ -74,7 +81,7 @@
           @click="openPermission('screenRecording')"
         >
           <span>
-            <strong>屏幕录制</strong>
+            <strong>{{ t('chat.windowFollower.settings.screenRecording') }}</strong>
             <small>{{ permissionLabel(store.state.permissions.screenRecording) }}</small>
           </span>
           <Icon icon="lucide:external-link" class="size-4" />
@@ -83,7 +90,9 @@
 
       <section class="settings-section" aria-labelledby="window-follower-exclusions-heading">
         <div class="settings-section-heading">
-          <h2 id="window-follower-exclusions-heading">排除应用</h2>
+          <h2 id="window-follower-exclusions-heading">
+            {{ t('chat.windowFollower.settings.exclusionsHeading') }}
+          </h2>
           <Button
             data-testid="window-follower-exclude-current-app"
             type="button"
@@ -93,7 +102,7 @@
             @click="excludeCurrentApp"
           >
             <Icon icon="lucide:ban" class="mr-1.5 size-3.5" />
-            排除当前应用
+            {{ t('chat.windowFollower.settings.excludeCurrentApp') }}
           </Button>
         </div>
 
@@ -111,15 +120,19 @@
               :disabled="busy"
               @click="removeExcludedApp(app.id)"
             >
-              恢复
+              {{ t('chat.windowFollower.settings.restore') }}
             </Button>
           </div>
         </div>
-        <p v-else class="settings-empty">暂无排除应用</p>
+        <p v-else class="settings-empty">
+          {{ t('chat.windowFollower.settings.noExcludedApps') }}
+        </p>
       </section>
 
       <section class="settings-section" aria-labelledby="window-follower-diagnostics-heading">
-        <h2 id="window-follower-diagnostics-heading">诊断</h2>
+        <h2 id="window-follower-diagnostics-heading">
+          {{ t('chat.windowFollower.settings.diagnosticsHeading') }}
+        </h2>
         <button
           data-testid="window-follower-open-debug"
           type="button"
@@ -127,15 +140,15 @@
           @click="openDebug"
         >
           <span>
-            <strong>WindowFollower 状态</strong>
-            <small>查看目标窗口、权限与几何状态</small>
+            <strong>{{ t('chat.windowFollower.settings.debugTitle') }}</strong>
+            <small>{{ t('chat.windowFollower.settings.debugDescription') }}</small>
           </span>
           <Icon icon="lucide:bug" class="size-4" />
         </button>
       </section>
 
       <p v-if="store.commandError" class="settings-error" role="alert">
-        {{ store.commandError }}
+        {{ t('chat.windowFollower.errors.commandFailed', { message: store.commandError }) }}
       </p>
     </div>
   </section>
@@ -143,6 +156,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Icon } from '@iconify/vue'
 import { Button } from '@shadcn/components/ui/button'
 import { Slider } from '@shadcn/components/ui/slider'
@@ -152,21 +166,28 @@ import { useWindowFollowerStore } from '@/stores/windowFollower'
 import { useWindowFollowerDebugStore } from '@/stores/windowFollowerDebug'
 
 const emit = defineEmits<{ close: [] }>()
+const { t } = useI18n()
 const store = useWindowFollowerStore()
 const debugStore = useWindowFollowerDebugStore()
 const busy = ref(false)
 type DesktopPermissionState = WindowContextSnapshot['permissions']['accessibility']
 
 const automaticAdhesionStatus = computed(() => {
-  if (!store.settings.automaticAdhesion) return '已暂停'
-  return store.state.automaticAdhesionAvailable ? '当前可用' : '等待系统权限'
+  if (!store.settings.automaticAdhesion) {
+    return t('chat.windowFollower.settings.adhesion.paused')
+  }
+  return store.state.automaticAdhesionAvailable
+    ? t('chat.windowFollower.settings.adhesion.available')
+    : t('chat.windowFollower.settings.adhesion.waitingPermissions')
 })
 
 const permissionLabel = (state: DesktopPermissionState) => {
-  if (state === 'granted') return '已授权'
-  if (state === 'missing') return '需要授权'
-  if (state === 'not-applicable') return '当前平台不适用'
-  return '正在检测'
+  if (state === 'granted') return t('chat.windowFollower.settings.permission.granted')
+  if (state === 'missing') return t('chat.windowFollower.settings.permission.missing')
+  if (state === 'not-applicable') {
+    return t('chat.windowFollower.settings.permission.notApplicable')
+  }
+  return t('chat.windowFollower.settings.permission.checking')
 }
 
 const run = async (operation: () => Promise<unknown>) => {

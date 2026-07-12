@@ -50,6 +50,13 @@ vi.mock('@/stores/windowFollowerDebug', () => ({
   useWindowFollowerDebugStore: () => debugStore
 }))
 
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({
+    t: (key: string, params?: Record<string, unknown>) =>
+      params?.message ? `${key}:${String(params.message)}` : key
+  })
+}))
+
 const SwitchStub = defineComponent({
   name: 'Switch',
   emits: ['update:modelValue'],
@@ -137,5 +144,15 @@ describe('WindowFollowerSettingsPanel', () => {
 
     await wrapper.get('[data-testid="window-follower-settings-back"]').trigger('click')
     expect(wrapper.emitted('close')).toEqual([[], []])
+  })
+
+  it('renders local command failures through the WindowFollower error catalog', async () => {
+    store.commandError = 'offline'
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    expect(wrapper.get('[role="alert"]').text()).toBe(
+      'chat.windowFollower.errors.commandFailed:offline'
+    )
   })
 })

@@ -10,6 +10,7 @@ export interface SpotlightRect {
 
 export interface UseOnBoardingOptions {
   visible?: MaybeRefOrGetter<boolean>
+  containerEl?: MaybeRefOrGetter<HTMLElement | null>
   padding?: number
   radius?: number
   edgeInset?: number
@@ -41,7 +42,20 @@ export function useOnBoarding(
   const edgeInset = options.edgeInset ?? 16
 
   const documentEl = typeof document !== 'undefined' ? document.documentElement : null
-  const { width: viewportWidth, height: viewportHeight } = useElementSize(documentEl)
+  const containerElRef = computed(() => {
+    const requestedContainer =
+      options.containerEl === undefined ? documentEl : (toValue(options.containerEl) ?? documentEl)
+    return (
+      requestedContainer?.closest<HTMLElement>('[data-window-follower-surface]') ??
+      requestedContainer
+    )
+  })
+  const { width: viewportWidth, height: viewportHeight } = useElementSize(containerElRef)
+  const {
+    x: containerX,
+    y: containerY,
+    update: updateContainerBounds
+  } = useElementBounding(containerElRef)
 
   const targetElRef = computed(() => toValue(targetEl))
   const {
@@ -56,7 +70,10 @@ export function useOnBoarding(
   // box size, so its own ResizeObserver may not fire. Re-read its rect when the
   // viewport resizes; this runs before the next paint and keeps the cutout in
   // sync with the layout pass.
-  watch([viewportWidth, viewportHeight], () => updateTargetBounds())
+  watch([viewportWidth, viewportHeight], () => {
+    updateContainerBounds()
+    updateTargetBounds()
+  })
 
   const spotlightRect = computed<SpotlightRect | null>(() => {
     const isVisible = options.visible === undefined ? true : Boolean(toValue(options.visible))
@@ -71,8 +88,8 @@ export function useOnBoarding(
       return null
     }
 
-    const top = Math.max(targetY.value - padding, edgeInset)
-    const left = Math.max(targetX.value - padding, edgeInset)
+    const top = Math.max(targetY.value - containerY.value - padding, edgeInset)
+    const left = Math.max(targetX.value - containerX.value - padding, edgeInset)
     const width = Math.min(
       targetWidth.value + padding * 2,
       Math.max(viewportWidth.value - left - edgeInset, 0)

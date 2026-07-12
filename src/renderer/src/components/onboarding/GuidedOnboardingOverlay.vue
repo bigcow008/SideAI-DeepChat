@@ -2,7 +2,7 @@
   <div
     v-if="visible"
     data-testid="guided-onboarding-overlay"
-    class="pointer-events-none fixed inset-0 z-70"
+    class="window-follower-onboarding-viewport pointer-events-none fixed inset-0 z-70"
   >
     <OnBoardingSpotlight
       :path-d="pathD"
@@ -154,7 +154,10 @@ const panelRef = ref<HTMLElement | null>(null)
 
 const { spotlightRect, viewportWidth, viewportHeight, pathD, cutoutPathD } = useOnBoarding(
   () => props.targetEl,
-  { visible: () => props.visible }
+  {
+    visible: () => props.visible,
+    containerEl: () => props.containerEl
+  }
 )
 
 const { height: panelActualHeight } = useElementBounding(panelRef)

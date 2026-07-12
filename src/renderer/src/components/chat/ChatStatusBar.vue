@@ -122,7 +122,9 @@
             align="start"
             :class="[
               'z-72 max-w-[calc(100vw-1rem)] overflow-hidden p-0',
-              isModelSettingsExpanded ? 'w-[38rem]' : 'w-[20rem]'
+              isModelSettingsExpanded
+                ? 'w-[38rem] [--window-follower-portal-max-width:38rem]'
+                : 'w-[20rem] [--window-follower-portal-max-width:20rem]'
             ]"
           >
             <div class="flex max-h-[28rem]">
@@ -363,7 +365,7 @@
                             <TooltipContent
                               side="top"
                               align="start"
-                              class="z-[var(--dc-z-popover)] max-w-80 text-xs"
+                              class="z-[var(--dc-z-popover)] max-w-80 [--window-follower-portal-max-width:20rem] text-xs"
                             >
                               {{ t('chat.advancedSettings.topPDescription') }}
                             </TooltipContent>
@@ -879,7 +881,10 @@
             </Button>
           </PopoverTrigger>
 
-          <PopoverContent align="end" class="w-[18rem] p-0">
+          <PopoverContent
+            align="end"
+            class="w-[18rem] [--window-follower-portal-max-width:18rem] p-0"
+          >
             <div class="border-b px-3 py-3">
               <div class="text-sm font-medium">{{ t('chat.advancedSettings.title') }}</div>
             </div>

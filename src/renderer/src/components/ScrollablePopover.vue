@@ -5,7 +5,13 @@
     </PopoverTrigger>
     <PopoverContent
       :align="align"
-      :class="cn('p-0', contentClass, enableScrollable && 'max-h-96 overflow-hidden')"
+      :class="
+        cn(
+          'p-0',
+          contentClass,
+          enableScrollable && 'max-h-96 [--window-follower-portal-max-height:24rem] overflow-hidden'
+        )
+      "
     >
       <div v-if="enableScrollable" class="max-h-96 overflow-y-auto">
         <slot />

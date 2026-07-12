@@ -46,6 +46,20 @@ describe('WindowFollowerSurface', () => {
     expect(wrapper.get('[data-testid="bubble"]').exists()).toBe(true)
   })
 
+  it('keeps a collapsed bubble visible after the transparent reserve', () => {
+    const wrapper = mount(WindowFollowerSurface, {
+      props: { mode: 'following', collapsed: true, contentOffsetX: 44 },
+      slots: {
+        collapsed: '<div data-testid="bubble" />'
+      }
+    })
+
+    const layer = wrapper.get('.window-follower-collapsed-layer')
+    expect(layer.attributes('style')).toContain('width: calc(100vw - 44px)')
+    expect(layer.attributes('style')).toContain('transform: translateX(44px)')
+    expect(wrapper.get('[data-testid="bubble"]').exists()).toBe(true)
+  })
+
   it('reports reserve and content pointer transitions without duplicate calls', async () => {
     const wrapper = mount(WindowFollowerSurface, {
       props: { mode: 'following', collapsed: false, contentOffsetX: 44 }

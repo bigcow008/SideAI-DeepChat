@@ -9,7 +9,11 @@
     >
       <slot />
     </div>
-    <div v-if="isPanelMode && collapsed" class="window-follower-collapsed-layer">
+    <div
+      v-if="isPanelMode && collapsed"
+      class="window-follower-collapsed-layer"
+      :style="contentStyle"
+    >
       <slot name="collapsed" />
     </div>
   </div>
@@ -18,6 +22,7 @@
 <script setup lang="ts">
 import type { WindowFollowerMode } from '@shared/windowFollower'
 import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
+import { provideWindowFollowerPortalBounds } from '@shadcn/lib/windowFollowerPortalBounds'
 
 const props = defineProps<{
   mode: WindowFollowerMode
@@ -30,10 +35,17 @@ const emit = defineEmits<{
 }>()
 
 const isPanelMode = computed(() => props.mode !== 'normal')
-const surfaceStyle = computed(() => ({
+const portalContentOffsetX = computed(() => (isPanelMode.value ? props.contentOffsetX : 0))
+provideWindowFollowerPortalBounds({
+  isPanelMode,
+  contentOffsetX: portalContentOffsetX
+})
+
+const contentStyle = computed(() => ({
   width: isPanelMode.value ? `calc(100vw - ${props.contentOffsetX}px)` : '100vw',
   transform: `translateX(${isPanelMode.value ? props.contentOffsetX : 0}px)`
 }))
+const surfaceStyle = contentStyle
 
 let lastPointerClientX: number | null = null
 let lastPointerInteractive: boolean | null = null

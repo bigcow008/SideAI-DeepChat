@@ -18,6 +18,10 @@ vi.mock('@/stores/windowFollower', () => ({
   useWindowFollowerStore: () => store
 }))
 
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({ t: (key: string) => key })
+}))
+
 const passthrough = { template: '<div><slot /></div>' }
 
 const mountToolbar = () =>
