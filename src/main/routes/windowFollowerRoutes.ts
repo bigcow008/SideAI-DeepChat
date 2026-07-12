@@ -1,14 +1,24 @@
 import {
+  windowFollowerExcludeCurrentAppRoute,
   windowFollowerGetStateRoute,
+  windowFollowerGetSettingsRoute,
+  windowFollowerHideRoute,
   windowFollowerOpenPermissionSettingsRoute,
+  windowFollowerQuitRoute,
   windowFollowerRefreshRoute,
+  windowFollowerRemoveExcludedAppRoute,
+  windowFollowerResetWidthRoute,
   windowFollowerSetAutomaticAdhesionRoute,
   windowFollowerSetCollapsedRoute,
   windowFollowerSetModeRoute,
   windowFollowerSetPointerInteractiveRoute,
   windowFollowerSetWidthRoute
 } from '@shared/contracts/routes'
-import type { WindowFollowerDebugDto, WindowFollowerMode } from '@shared/windowFollower'
+import type {
+  WindowFollowerDebugDto,
+  WindowFollowerMode,
+  WindowFollowerSettingsDto
+} from '@shared/windowFollower'
 import type {
   DesktopPermissionKey,
   DesktopPermissionService
@@ -22,6 +32,12 @@ export type WindowFollowerRouteRuntime = {
     setCollapsed: (collapsed: boolean) => boolean
     setPanelWidth: (width: number) => boolean
     setContentPointerInteractive: (interactive: boolean) => boolean
+    resetPanelWidth: () => boolean
+    getSettings: () => WindowFollowerSettingsDto
+    excludeCurrentApp: () => Promise<WindowFollowerSettingsDto>
+    removeExcludedApp: (id: string) => Promise<WindowFollowerSettingsDto>
+    hide: () => boolean
+    quit: () => boolean
   }
   desktopPermissionService: Pick<DesktopPermissionService, 'openSettings'>
   getAutomaticAdhesion: () => boolean
@@ -77,6 +93,40 @@ export async function dispatchWindowFollowerRoute(
       await runtime.windowFollowerPresenter.refresh(true)
       return windowFollowerOpenPermissionSettingsRoute.output.parse({ state: state(runtime) })
     }
+    case windowFollowerResetWidthRoute.name:
+      windowFollowerResetWidthRoute.input.parse(rawInput)
+      runtime.windowFollowerPresenter.resetPanelWidth()
+      return windowFollowerResetWidthRoute.output.parse({ state: state(runtime) })
+    case windowFollowerGetSettingsRoute.name:
+      windowFollowerGetSettingsRoute.input.parse(rawInput)
+      return windowFollowerGetSettingsRoute.output.parse({
+        settings: runtime.windowFollowerPresenter.getSettings()
+      })
+    case windowFollowerExcludeCurrentAppRoute.name: {
+      windowFollowerExcludeCurrentAppRoute.input.parse(rawInput)
+      const settings = await runtime.windowFollowerPresenter.excludeCurrentApp()
+      return windowFollowerExcludeCurrentAppRoute.output.parse({
+        settings,
+        state: state(runtime)
+      })
+    }
+    case windowFollowerRemoveExcludedAppRoute.name: {
+      const input = windowFollowerRemoveExcludedAppRoute.input.parse(rawInput)
+      const settings = await runtime.windowFollowerPresenter.removeExcludedApp(input.id)
+      return windowFollowerRemoveExcludedAppRoute.output.parse({
+        settings,
+        state: state(runtime)
+      })
+    }
+    case windowFollowerHideRoute.name:
+      windowFollowerHideRoute.input.parse(rawInput)
+      return windowFollowerHideRoute.output.parse({
+        hidden: runtime.windowFollowerPresenter.hide()
+      })
+    case windowFollowerQuitRoute.name:
+      windowFollowerQuitRoute.input.parse(rawInput)
+      runtime.windowFollowerPresenter.quit()
+      return windowFollowerQuitRoute.output.parse({ requested: true })
     default:
       return undefined
   }

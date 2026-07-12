@@ -2,10 +2,12 @@ import type {
   Bounds,
   WindowContextSnapshot,
   WindowFollowerDebugDto,
-  WindowFollowerMode
+  WindowFollowerMode,
+  WindowFollowerSettingsDto
 } from '@shared/windowFollower'
 import {
   calculatePanelBoundsForDisplay,
+  PANEL_WIDTH,
   type PanelBoundsResult
 } from '@/windowFollower/core/panelBounds'
 import type { WindowContextRefreshResult } from '@/windowFollower/windowContextService'
@@ -32,6 +34,7 @@ type BrowserWindowLike = {
   setIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) => void
   showInactive: () => void
   show: () => void
+  hide: () => void
   focus: () => void
   isDestroyed: () => boolean
   on: (event: 'move', listener: () => void) => unknown
@@ -50,6 +53,10 @@ type WindowFollowerPresenterDependencies = {
     hasTransparentReserve: boolean
   }) => void
   restoreDesktopWindowPresentation?: () => void
+  getSettings?: () => WindowFollowerSettingsDto
+  excludeCurrentApp?: () => Promise<WindowFollowerSettingsDto>
+  removeExcludedApp?: (id: string) => Promise<WindowFollowerSettingsDto>
+  requestQuit?: () => void
   onStateChanged?: (state: WindowFollowerDebugDto) => void
 }
 
@@ -64,11 +71,11 @@ function deepFreeze<T>(value: T): T {
 function sameBounds(first: Bounds | null, second: Bounds | null) {
   return Boolean(
     first &&
-      second &&
-      first.x === second.x &&
-      first.y === second.y &&
-      first.width === second.width &&
-      first.height === second.height
+    second &&
+    first.x === second.x &&
+    first.y === second.y &&
+    first.width === second.width &&
+    first.height === second.height
   )
 }
 
@@ -167,8 +174,7 @@ export class WindowFollowerPresenter {
       mode: this.#mode,
       collapsed: this.#collapsed,
       panelWidth: this.#panelWidth,
-      automaticAdhesionAvailable:
-        this.#lastRefreshResult?.automaticAdhesionAvailable ?? false,
+      automaticAdhesionAvailable: this.#lastRefreshResult?.automaticAdhesionAvailable ?? false,
       snapshot: this.#lastRefreshResult?.snapshot ?? null,
       permissions: this.#lastRefreshResult?.permissions ?? {
         platform: 'unknown',
@@ -312,6 +318,45 @@ export class WindowFollowerPresenter {
       this.applyStationaryBounds(window)
     }
     this.publishStateIfChanged()
+    return true
+  }
+
+  resetPanelWidth(): boolean {
+    return this.setPanelWidth(PANEL_WIDTH)
+  }
+
+  getSettings(): WindowFollowerSettingsDto {
+    return (
+      this.dependencies.getSettings?.() ?? {
+        automaticAdhesion: true,
+        currentApp: null,
+        excludedApps: []
+      }
+    )
+  }
+
+  async excludeCurrentApp(): Promise<WindowFollowerSettingsDto> {
+    const settings = await this.dependencies.excludeCurrentApp?.()
+    await this.refresh(true)
+    return settings ?? this.getSettings()
+  }
+
+  async removeExcludedApp(id: string): Promise<WindowFollowerSettingsDto> {
+    const settings = await this.dependencies.removeExcludedApp?.(id)
+    await this.refresh(true)
+    return settings ?? this.getSettings()
+  }
+
+  hide(): boolean {
+    const window = this.resolveWindow()
+    if (!window) return false
+    window.hide()
+    return true
+  }
+
+  quit(): boolean {
+    if (!this.dependencies.requestQuit) return false
+    this.dependencies.requestQuit()
     return true
   }
 

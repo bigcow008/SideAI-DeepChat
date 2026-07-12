@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { WindowFollowerPresenter } from '@/presenter/windowFollowerPresenter'
-import type { WindowContextSnapshot } from '@shared/windowFollower'
+import type { WindowContextSnapshot, WindowFollowerSettingsDto } from '@shared/windowFollower'
 
 function createWindow() {
   let bounds = { x: 100, y: 80, width: 1000, height: 760 }
@@ -19,6 +19,7 @@ function createWindow() {
     setIgnoreMouseEvents: vi.fn(),
     showInactive: vi.fn(),
     show: vi.fn(),
+    hide: vi.fn(),
     focus: vi.fn(),
     isDestroyed: vi.fn(() => false),
     on: vi.fn((event: string, listener: () => void) => {
@@ -42,6 +43,24 @@ function createWindow() {
 const primary = {
   bounds: { x: 0, y: 0, width: 1728, height: 1117 },
   workArea: { x: 0, y: 0, width: 1728, height: 1080 }
+}
+
+const settings: WindowFollowerSettingsDto = {
+  automaticAdhesion: true,
+  currentApp: {
+    id: 'bundleId:com.microsoft.VSCode',
+    matchType: 'bundleId',
+    name: 'Code',
+    bundleId: 'com.microsoft.VSCode'
+  },
+  excludedApps: []
+}
+
+const grantedPermissions = {
+  platform: 'macos' as const,
+  accessibility: 'granted' as const,
+  screenRecording: 'granted' as const,
+  checkedAt: 1_000
 }
 
 describe('WindowFollowerPresenter', () => {
@@ -478,5 +497,67 @@ describe('WindowFollowerPresenter', () => {
     presenter.followTarget({ x: 100, y: 100, width: 900, height: 700 })
 
     await expect(presenter.captureWindowContextForMessage()).resolves.toBeNull()
+  })
+
+  it('resets the panel to the accepted SideAI default width', () => {
+    const presenter = new WindowFollowerPresenter({
+      getWindow: () => createWindow(),
+      getDisplayMatching: () => primary,
+      getAllDisplays: () => [primary]
+    })
+    presenter.setPanelWidth(480)
+
+    expect(presenter.resetPanelWidth()).toBe(true)
+    expect(presenter.getDebugState().panelWidth).toBe(360)
+  })
+
+  it('delegates settings and exclusion operations before refreshing native state', async () => {
+    const getSettings = vi.fn(() => settings)
+    const excludeCurrentApp = vi.fn(async () => settings)
+    const removeExcludedApp = vi.fn(async () => settings)
+    const refreshContext = vi.fn(async () => ({
+      permissions: grantedPermissions,
+      canReadWindowContext: true,
+      automaticAdhesionAvailable: true,
+      snapshot: null,
+      lastError: '目标应用已排除'
+    }))
+    const presenter = new WindowFollowerPresenter({
+      getWindow: () => createWindow(),
+      getDisplayMatching: () => primary,
+      getAllDisplays: () => [primary],
+      refreshContext,
+      getSettings,
+      excludeCurrentApp,
+      removeExcludedApp
+    })
+
+    expect(presenter.getSettings()).toBe(settings)
+    await expect(presenter.excludeCurrentApp()).resolves.toBe(settings)
+    await expect(presenter.removeExcludedApp('bundleId:com.microsoft.VSCode')).resolves.toBe(
+      settings
+    )
+
+    expect(excludeCurrentApp).toHaveBeenCalledOnce()
+    expect(removeExcludedApp).toHaveBeenCalledWith('bundleId:com.microsoft.VSCode')
+    expect(refreshContext).toHaveBeenCalledTimes(2)
+    expect(presenter.getDebugState().lastError).toBe('目标应用已排除')
+  })
+
+  it('hides only the primary window and requests quit through the lifecycle callback', () => {
+    const window = createWindow()
+    const requestQuit = vi.fn()
+    const presenter = new WindowFollowerPresenter({
+      getWindow: () => window,
+      getDisplayMatching: () => primary,
+      getAllDisplays: () => [primary],
+      requestQuit
+    })
+
+    expect(presenter.hide()).toBe(true)
+    expect(presenter.quit()).toBe(true)
+
+    expect(window.hide).toHaveBeenCalledOnce()
+    expect(requestQuit).toHaveBeenCalledOnce()
   })
 })

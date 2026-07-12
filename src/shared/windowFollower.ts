@@ -60,3 +60,23 @@ export const WindowFollowerDebugDtoSchema = z.strictObject({
 })
 
 export type WindowFollowerDebugDto = z.infer<typeof WindowFollowerDebugDtoSchema>
+
+export const AppIdentitySchema = z.strictObject({
+  id: z.string().min(1),
+  matchType: z.enum(['bundleId', 'path', 'name']),
+  name: z.string().min(1),
+  bundleId: z.string().optional(),
+  path: z.string().optional()
+})
+
+export const ExcludedAppSchema = AppIdentitySchema.extend({
+  createdAt: z.string().min(1)
+})
+
+export const WindowFollowerSettingsDtoSchema = z.strictObject({
+  automaticAdhesion: z.boolean(),
+  currentApp: AppIdentitySchema.nullable(),
+  excludedApps: z.array(ExcludedAppSchema)
+})
+
+export type WindowFollowerSettingsDto = z.infer<typeof WindowFollowerSettingsDtoSchema>

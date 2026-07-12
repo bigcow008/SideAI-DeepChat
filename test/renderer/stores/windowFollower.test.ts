@@ -1,4 +1,4 @@
-import type { WindowFollowerDebugDto } from '@shared/windowFollower'
+import type { WindowFollowerDebugDto, WindowFollowerSettingsDto } from '@shared/windowFollower'
 import { describe, expect, it, vi } from 'vitest'
 
 function deferred<T>() {
@@ -32,6 +32,15 @@ const panelState = (overrides: Partial<WindowFollowerDebugDto> = {}): WindowFoll
   ...overrides
 })
 
+const settings = (
+  overrides: Partial<WindowFollowerSettingsDto> = {}
+): WindowFollowerSettingsDto => ({
+  automaticAdhesion: true,
+  currentApp: null,
+  excludedApps: [],
+  ...overrides
+})
+
 const setup = async () => {
   vi.resetModules()
   vi.doUnmock('pinia')
@@ -49,6 +58,18 @@ const setup = async () => {
     setPointerInteractive: vi.fn<() => Promise<WindowFollowerDebugDto>>(),
     setAutomaticAdhesion: vi.fn<() => Promise<WindowFollowerDebugDto>>(),
     openPermissionSettings: vi.fn<() => Promise<WindowFollowerDebugDto>>(),
+    resetWidth: vi.fn<() => Promise<WindowFollowerDebugDto>>(),
+    getSettings: vi.fn<() => Promise<WindowFollowerSettingsDto>>(),
+    excludeCurrentApp:
+      vi.fn<
+        () => Promise<{ settings: WindowFollowerSettingsDto; state: WindowFollowerDebugDto }>
+      >(),
+    removeExcludedApp:
+      vi.fn<
+        () => Promise<{ settings: WindowFollowerSettingsDto; state: WindowFollowerDebugDto }>
+      >(),
+    hide: vi.fn<() => Promise<boolean>>(),
+    quit: vi.fn<() => Promise<boolean>>(),
     onStateChanged: vi.fn((listener: (state: WindowFollowerDebugDto) => void) => {
       stateListener = listener
       return unsubscribe
@@ -108,6 +129,80 @@ describe('WindowFollower store', () => {
 
     expect(store.state.collapsed).toBe(false)
     expect(store.commandError).toContain('native update failed')
+  })
+
+  it('loads settings and applies successful reset and exclusion commands', async () => {
+    const { store, client } = await setup()
+    const initialSettings = settings()
+    const excludedSettings = settings({
+      currentApp: {
+        id: 'bundleId:com.microsoft.VSCode',
+        matchType: 'bundleId',
+        name: 'Code',
+        bundleId: 'com.microsoft.VSCode'
+      },
+      excludedApps: [
+        {
+          id: 'bundleId:com.microsoft.VSCode',
+          matchType: 'bundleId',
+          name: 'Code',
+          bundleId: 'com.microsoft.VSCode',
+          createdAt: '2026-07-12T00:00:00.000Z'
+        }
+      ]
+    })
+    client.getSettings.mockResolvedValue(initialSettings)
+    client.resetWidth.mockResolvedValue(panelState({ panelWidth: 360 }))
+    client.excludeCurrentApp.mockResolvedValue({
+      settings: excludedSettings,
+      state: panelState({ lastError: '目标应用已排除' })
+    })
+
+    await store.loadSettings()
+    await store.resetWidth()
+    await store.excludeCurrentApp()
+
+    expect(store.settings).toEqual(excludedSettings)
+    expect(store.state.panelWidth).toBe(360)
+    expect(store.state.lastError).toBe('目标应用已排除')
+  })
+
+  it('preserves previous settings and state when an exclusion command fails', async () => {
+    const { store, client } = await setup()
+    const previousSettings = settings({
+      excludedApps: [
+        {
+          id: 'name:Terminal',
+          matchType: 'name',
+          name: 'Terminal',
+          createdAt: '2026-07-12T00:00:00.000Z'
+        }
+      ]
+    })
+    client.getState.mockResolvedValue(panelState())
+    client.getSettings.mockResolvedValue(previousSettings)
+    client.removeExcludedApp.mockRejectedValue(new Error('persist failed'))
+    await store.initialize()
+    await store.loadSettings()
+
+    await expect(store.removeExcludedApp('name:Terminal')).rejects.toThrow('persist failed')
+
+    expect(store.settings).toEqual(previousSettings)
+    expect(store.state).toEqual(panelState())
+    expect(store.commandError).toContain('persist failed')
+  })
+
+  it('delegates hide and quit without changing observable container state', async () => {
+    const { store, client } = await setup()
+    client.getState.mockResolvedValue(panelState())
+    client.hide.mockResolvedValue(true)
+    client.quit.mockResolvedValue(true)
+    await store.initialize()
+
+    await expect(store.hide()).resolves.toBe(true)
+    await expect(store.quit()).resolves.toBe(true)
+
+    expect(store.state).toEqual(panelState())
   })
 
   it('unsubscribes from typed events when disposed', async () => {

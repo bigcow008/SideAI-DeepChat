@@ -122,4 +122,61 @@ describe('WindowContextService', () => {
     expect(result.snapshot).toBeNull()
     expect(result.lastError).toBe('目标应用已排除')
   })
+
+  it('persists exclusion only after a readable current target exists', async () => {
+    const persistExcludedApps = vi.fn(async () => {})
+    const service = new WindowContextService({
+      permissionService: permissionService(),
+      readActiveWindow: async () => vscodeWindow,
+      getPreference: () => true,
+      ownProcessId: 99,
+      ownAppName: 'DeepChat',
+      initialExcludedApps: [],
+      persistExcludedApps,
+      now: () => 2_000
+    })
+
+    await service.excludeCurrentApp()
+    expect(persistExcludedApps).not.toHaveBeenCalled()
+
+    await service.refresh(true)
+    await service.excludeCurrentApp()
+
+    expect(persistExcludedApps).toHaveBeenCalledWith([
+      expect.objectContaining({
+        id: 'bundleId:com.microsoft.VSCode',
+        name: 'Code'
+      })
+    ])
+    expect((await service.refresh()).snapshot).toBeNull()
+  })
+
+  it('removes an exclusion and makes a future live target available again', async () => {
+    const persistExcludedApps = vi.fn(async () => {})
+    const service = new WindowContextService({
+      permissionService: permissionService(),
+      readActiveWindow: async () => vscodeWindow,
+      getPreference: () => true,
+      ownProcessId: 99,
+      ownAppName: 'DeepChat',
+      initialExcludedApps: [
+        {
+          id: 'bundleId:com.microsoft.VSCode',
+          matchType: 'bundleId',
+          name: 'Code',
+          bundleId: 'com.microsoft.VSCode',
+          createdAt: '2026-07-12T00:00:00.000Z'
+        }
+      ],
+      persistExcludedApps,
+      now: () => 2_000
+    })
+
+    expect((await service.refresh()).snapshot).toBeNull()
+
+    await service.removeExcludedApp('bundleId:com.microsoft.VSCode')
+
+    expect(persistExcludedApps).toHaveBeenCalledWith([])
+    expect((await service.refresh()).snapshot?.app.stableKey).toBe('bundleId:com.microsoft.VSCode')
+  })
 })

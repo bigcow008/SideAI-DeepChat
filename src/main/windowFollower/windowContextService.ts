@@ -1,4 +1,4 @@
-import type { WindowContextSnapshot } from '@shared/windowFollower'
+import type { WindowContextSnapshot, WindowFollowerSettingsDto } from '@shared/windowFollower'
 import type { DesktopPermissionService } from './desktopPermissionService'
 import { readDesktopContextWhenAvailable } from './desktopCapability'
 import type { WindowSnapshot, WindowReadPermissions } from './getWindowsAdapter'
@@ -10,6 +10,10 @@ import {
   type TargetState
 } from './core/targetTracker'
 import { createAppIdentity, isOwnerExcluded, type ExcludedApp } from './core/adhesionExclusions'
+import {
+  excludeCurrentAppWithUpdate,
+  removeExcludedAppWithUpdate
+} from './core/adhesionExclusionFlow'
 
 type WindowContextServiceDependencies = {
   permissionService: DesktopPermissionService
@@ -17,6 +21,8 @@ type WindowContextServiceDependencies = {
   getPreference: () => boolean
   ownProcessId: number
   ownAppName: string
+  initialExcludedApps?: ExcludedApp[]
+  persistExcludedApps?: (excludedApps: ExcludedApp[]) => Promise<void>
   now?: () => number
 }
 
@@ -48,10 +54,41 @@ export class WindowContextService {
 
   constructor(private readonly dependencies: WindowContextServiceDependencies) {
     this.now = dependencies.now ?? Date.now
+    this.excludedApps = [...(dependencies.initialExcludedApps ?? [])]
   }
 
   setExcludedApps(excludedApps: ExcludedApp[]) {
     this.excludedApps = [...excludedApps]
+  }
+
+  getAdhesionSettings(): WindowFollowerSettingsDto {
+    return {
+      automaticAdhesion: this.dependencies.getPreference(),
+      currentApp: createAppIdentity(this.targetState.target?.owner),
+      excludedApps: this.excludedApps.map((app) => ({ ...app }))
+    }
+  }
+
+  async excludeCurrentApp(): Promise<WindowFollowerSettingsDto> {
+    await excludeCurrentAppWithUpdate({
+      owner: this.targetState.target?.owner,
+      getExcludedApps: () => this.excludedApps,
+      setExcludedApps: (excludedApps) => this.setExcludedApps(excludedApps),
+      persistExcludedApps: (excludedApps) => this.persistExcludedApps(excludedApps),
+      updatePanelPosition: () => this.refresh(true).then(() => undefined)
+    })
+    return this.getAdhesionSettings()
+  }
+
+  async removeExcludedApp(id: string): Promise<WindowFollowerSettingsDto> {
+    await removeExcludedAppWithUpdate({
+      id,
+      getExcludedApps: () => this.excludedApps,
+      setExcludedApps: (excludedApps) => this.setExcludedApps(excludedApps),
+      persistExcludedApps: (excludedApps) => this.persistExcludedApps(excludedApps),
+      updatePanelPosition: () => this.refresh(true).then(() => undefined)
+    })
+    return this.getAdhesionSettings()
   }
 
   async refresh(forcePermissions = false): Promise<WindowContextRefreshResult> {
@@ -98,6 +135,10 @@ export class WindowContextService {
       windowInfo.owner.processId === this.dependencies.ownProcessId ||
       windowInfo.owner.name.toLowerCase().includes(this.dependencies.ownAppName.toLowerCase())
     )
+  }
+
+  private persistExcludedApps(excludedApps: ExcludedApp[]) {
+    return this.dependencies.persistExcludedApps?.(excludedApps) ?? Promise.resolve()
   }
 
   private buildSnapshot(

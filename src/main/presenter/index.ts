@@ -49,7 +49,7 @@ import { TrayPresenter } from './trayPresenter'
 import { OAuthPresenter } from './oauthPresenter'
 import { FloatingButtonPresenter } from './floatingButtonPresenter'
 import { YoBrowserPresenter } from './browser/YoBrowserPresenter'
-import { CONFIG_EVENTS } from '@/events'
+import { CONFIG_EVENTS, WINDOW_EVENTS } from '@/events'
 import { KnowledgePresenter } from './knowledgePresenter'
 import { WorkspacePresenter } from './workspacePresenter'
 import { ToolPresenter } from './toolPresenter'
@@ -101,6 +101,9 @@ import {
 } from '@/windowFollower/desktopPermissionService'
 import { GetWindowsAdapter } from '@/windowFollower/getWindowsAdapter'
 import { WindowContextService } from '@/windowFollower/windowContextService'
+import type { ExcludedApp } from '@/windowFollower/core/adhesionExclusions'
+
+const WINDOW_FOLLOWER_EXCLUDED_APPS_KEY = 'sideai.windowFollower.excludedApps'
 
 type MemoryMaintenanceConfigChangeTarget = Pick<
   MemoryPresenter,
@@ -212,6 +215,11 @@ export class Presenter implements IPresenter {
         (await getWindowsAdapter.readActiveWindow(permissions)) ?? null,
       getPreference: () =>
         this.configPresenter.getSetting<boolean>('sideai.windowFollower.automaticAdhesion') ?? true,
+      initialExcludedApps:
+        this.configPresenter.getSetting<ExcludedApp[]>(WINDOW_FOLLOWER_EXCLUDED_APPS_KEY) ?? [],
+      persistExcludedApps: async (excludedApps) => {
+        this.configPresenter.setSetting(WINDOW_FOLLOWER_EXCLUDED_APPS_KEY, excludedApps)
+      },
       ownProcessId: process.pid,
       ownAppName: app.getName()
     })
@@ -224,8 +232,11 @@ export class Presenter implements IPresenter {
       resumeWindowStateTracking: () => windowPresenter.resumePrimaryWindowStateTracking(),
       enterPanelWindowPresentation: (options) =>
         windowPresenter.enterPrimaryWindowFollowerPresentation(options),
-      restoreDesktopWindowPresentation: () =>
-        windowPresenter.restorePrimaryWindowPresentation(),
+      restoreDesktopWindowPresentation: () => windowPresenter.restorePrimaryWindowPresentation(),
+      getSettings: () => windowContextService.getAdhesionSettings(),
+      excludeCurrentApp: () => windowContextService.excludeCurrentApp(),
+      removeExcludedApp: (id) => windowContextService.removeExcludedApp(id),
+      requestQuit: () => eventBus.sendToMain(WINDOW_EVENTS.FORCE_QUIT_APP),
       onStateChanged: (state) => publishDeepchatEvent(windowFollowerStateChangedEvent.name, state)
     })
     this.tabPresenter = new TabPresenter(this.windowPresenter)

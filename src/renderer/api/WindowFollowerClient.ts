@@ -1,8 +1,14 @@
 import type { DeepchatBridge } from '@shared/contracts/bridge'
 import {
+  windowFollowerExcludeCurrentAppRoute,
   windowFollowerGetStateRoute,
+  windowFollowerGetSettingsRoute,
+  windowFollowerHideRoute,
   windowFollowerOpenPermissionSettingsRoute,
+  windowFollowerQuitRoute,
   windowFollowerRefreshRoute,
+  windowFollowerRemoveExcludedAppRoute,
+  windowFollowerResetWidthRoute,
   windowFollowerSetAutomaticAdhesionRoute,
   windowFollowerSetCollapsedRoute,
   windowFollowerSetModeRoute,
@@ -35,6 +41,22 @@ export function createWindowFollowerClient(bridge: DeepchatBridge = getDeepchatB
       invokeState(windowFollowerSetAutomaticAdhesionRoute.name, { enabled }),
     openPermissionSettings: (permission: 'accessibility' | 'screenRecording') =>
       invokeState(windowFollowerOpenPermissionSettingsRoute.name, { permission }),
+    resetWidth: () => invokeState(windowFollowerResetWidthRoute.name, {}),
+    getSettings: async () => {
+      const result = await bridge.invoke(windowFollowerGetSettingsRoute.name, {})
+      return result.settings
+    },
+    excludeCurrentApp: () => bridge.invoke(windowFollowerExcludeCurrentAppRoute.name, {}),
+    removeExcludedApp: (id: string) =>
+      bridge.invoke(windowFollowerRemoveExcludedAppRoute.name, { id }),
+    hide: async () => {
+      const result = await bridge.invoke(windowFollowerHideRoute.name, {})
+      return result.hidden
+    },
+    quit: async () => {
+      const result = await bridge.invoke(windowFollowerQuitRoute.name, {})
+      return result.requested
+    },
     onStateChanged: (
       listener: (state: DeepchatEventPayload<'windowFollower.stateChanged'>) => void
     ) => bridge.on(windowFollowerStateChangedEvent.name, listener)

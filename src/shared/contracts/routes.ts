@@ -1,9 +1,15 @@
 import type { z } from 'zod'
 import type { RouteContract } from './common'
 import {
+  windowFollowerExcludeCurrentAppRoute,
   windowFollowerGetStateRoute,
+  windowFollowerGetSettingsRoute,
+  windowFollowerHideRoute,
   windowFollowerOpenPermissionSettingsRoute,
+  windowFollowerQuitRoute,
   windowFollowerRefreshRoute,
+  windowFollowerRemoveExcludedAppRoute,
+  windowFollowerResetWidthRoute,
   windowFollowerSetAutomaticAdhesionRoute,
   windowFollowerSetCollapsedRoute,
   windowFollowerSetModeRoute,
@@ -1012,7 +1018,13 @@ const DEEPCHAT_ROUTE_CATALOG_PART_5 = {
   [windowFollowerSetWidthRoute.name]: windowFollowerSetWidthRoute,
   [windowFollowerSetPointerInteractiveRoute.name]: windowFollowerSetPointerInteractiveRoute,
   [windowFollowerSetAutomaticAdhesionRoute.name]: windowFollowerSetAutomaticAdhesionRoute,
-  [windowFollowerOpenPermissionSettingsRoute.name]: windowFollowerOpenPermissionSettingsRoute
+  [windowFollowerOpenPermissionSettingsRoute.name]: windowFollowerOpenPermissionSettingsRoute,
+  [windowFollowerResetWidthRoute.name]: windowFollowerResetWidthRoute,
+  [windowFollowerGetSettingsRoute.name]: windowFollowerGetSettingsRoute,
+  [windowFollowerExcludeCurrentAppRoute.name]: windowFollowerExcludeCurrentAppRoute,
+  [windowFollowerRemoveExcludedAppRoute.name]: windowFollowerRemoveExcludedAppRoute,
+  [windowFollowerHideRoute.name]: windowFollowerHideRoute,
+  [windowFollowerQuitRoute.name]: windowFollowerQuitRoute
 } satisfies Record<string, RouteContract>
 
 export type DeepchatRouteCatalog = typeof DEEPCHAT_ROUTE_CATALOG_PART_1 &

@@ -18,7 +18,13 @@ describe('window follower typed routes', () => {
         'windowFollower.setWidth',
         'windowFollower.setPointerInteractive',
         'windowFollower.setAutomaticAdhesion',
-        'windowFollower.openPermissionSettings'
+        'windowFollower.openPermissionSettings',
+        'windowFollower.resetWidth',
+        'windowFollower.getSettings',
+        'windowFollower.excludeCurrentApp',
+        'windowFollower.removeExcludedApp',
+        'windowFollower.hide',
+        'windowFollower.quit'
       ])
     )
   })
