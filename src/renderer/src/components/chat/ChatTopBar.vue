@@ -119,7 +119,7 @@
         variant="ghost"
         size="icon"
         data-testid="window-follower-debug-button"
-        class="h-7 w-7 text-muted-foreground hover:text-foreground"
+        class="window-follower-topbar-debug h-7 w-7 text-muted-foreground hover:text-foreground"
         :title="t('settings.deepchatAgents.debug.entry')"
         :aria-label="t('settings.deepchatAgents.debug.entry')"
         @click="windowFollowerDebugStore.open"
@@ -548,6 +548,10 @@ const handleBackToParent = async () => {
 
 <style scoped>
 :global(html[data-window-follower-surface='panel']) .window-follower-topbar-copy {
+  display: none;
+}
+
+:global(html[data-window-follower-surface='panel']) .window-follower-topbar-debug {
   display: none;
 }
 

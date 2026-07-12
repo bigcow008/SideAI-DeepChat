@@ -109,5 +109,8 @@ describe('ChatTopBar', () => {
     expect(wrapper.get('[data-testid="chat-topbar-workspace-button"]')).toBeTruthy()
     expect(wrapper.get('[data-testid="chat-topbar-share-button"]')).toBeTruthy()
     expect(wrapper.get('[data-testid="chat-topbar-more-button"]')).toBeTruthy()
+    expect(wrapper.get('[data-testid="window-follower-debug-button"]').classes()).toContain(
+      'window-follower-topbar-debug'
+    )
   })
 })

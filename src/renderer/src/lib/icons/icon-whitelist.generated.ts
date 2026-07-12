@@ -173,6 +173,7 @@ export const GENERATED_ICON_WHITELIST: Record<GeneratedIconCollectionKey, readon
     'panel-left-open',
     'panel-right-close',
     'panel-right-dashed',
+    'panel-top-open',
     'paperclip',
     'pause',
     'pen-tool',

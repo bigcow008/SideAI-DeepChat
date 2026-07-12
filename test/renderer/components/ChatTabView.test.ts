@@ -11,6 +11,7 @@ type SetupOptions = {
   sessionError?: string | null
   activeSessionId?: string | null
   bootstrapReject?: boolean
+  windowFollowerMode?: 'normal' | 'following' | 'fixed' | 'detached'
 }
 
 const setup = async (options: SetupOptions = {}) => {
@@ -34,6 +35,18 @@ const setup = async (options: SetupOptions = {}) => {
       options.activeSessionId ??
       options.chatSessionId ??
       (options.currentRoute === 'chat' ? 'session-1' : null),
+    hasActiveSession: Boolean(
+      options.activeSessionId ??
+      options.chatSessionId ??
+      (options.currentRoute === 'chat' ? 'session-1' : null)
+    ),
+    loading: false,
+    loadingMore: false,
+    hasMore: false,
+    sessionGroups: [],
+    getPinnedSessions: vi.fn(() => []),
+    loadNextPage: vi.fn().mockResolvedValue(undefined),
+    selectSession: vi.fn().mockResolvedValue(undefined),
     error: options.sessionError ?? null,
     newConversationTargetAgentId: options.newConversationTargetAgentId ?? 'deepchat',
     hasLoadedInitialPage: false,
@@ -65,6 +78,14 @@ const setup = async (options: SetupOptions = {}) => {
     open: vi.fn(),
     close: vi.fn()
   })
+  const windowFollowerStore = reactive({
+    state: {
+      mode: options.windowFollowerMode ?? 'following'
+    },
+    setMode: vi.fn(async (mode: 'normal' | 'following' | 'fixed' | 'detached') => {
+      windowFollowerStore.state.mode = mode
+    })
+  })
 
   vi.doMock('@/stores/ui/pageRouter', () => ({
     usePageRouterStore: () => pageRouter
@@ -89,6 +110,9 @@ const setup = async (options: SetupOptions = {}) => {
   }))
   vi.doMock('@/stores/windowFollowerDebug', () => ({
     useWindowFollowerDebugStore: () => windowFollowerDebugStore
+  }))
+  vi.doMock('@/stores/windowFollower', () => ({
+    useWindowFollowerStore: () => windowFollowerStore
   }))
   vi.doMock('@api/StartupClient', () => ({
     createStartupClient: () => ({
@@ -195,6 +219,7 @@ const setup = async (options: SetupOptions = {}) => {
     ollamaStore,
     projectStore,
     sessionStore,
+    windowFollowerStore,
     markStartupInteractive
   }
 }
@@ -314,6 +339,90 @@ describe('ChatTabView startup and routing', () => {
 
     expect(wrapper.find('[data-testid="chat-page"]').text()).toContain('session-42')
     expect(wrapper.find('[data-testid="collapsed-new-chat-button"]').exists()).toBe(false)
+  })
+
+  it('hides new chat for an unsent blank thread while keeping panel history and restore', async () => {
+    const { wrapper } = await setup({
+      currentRoute: 'newThread',
+      selectedAgentId: 'deepchat',
+      activeSessionId: null,
+      windowFollowerMode: 'following'
+    })
+
+    expect(wrapper.find('[data-testid="window-follower-new-chat"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="window-follower-history"]')).toBeTruthy()
+    expect(wrapper.get('[data-testid="window-follower-restore-window"]')).toBeTruthy()
+    expect(wrapper.get('[data-testid="window-follower-session-controls"]').classes()).toContain(
+      'window-follower-session-controls--with-page-debug'
+    )
+  })
+
+  it('shows new chat for a formal session and delegates panel commands to existing stores', async () => {
+    const { wrapper, sessionStore, windowFollowerStore } = await setup({
+      currentRoute: 'chat',
+      selectedAgentId: 'deepchat',
+      chatSessionId: 'session-42',
+      activeSessionId: 'session-42',
+      windowFollowerMode: 'fixed'
+    })
+
+    expect(wrapper.get('[data-testid="window-follower-session-controls"]').classes()).toContain(
+      'window-follower-session-controls--with-chat-actions'
+    )
+
+    await wrapper.get('[data-testid="window-follower-new-chat"]').trigger('click')
+    await wrapper.get('[data-testid="window-follower-restore-window"]').trigger('click')
+    await flushPromises()
+
+    expect(sessionStore.startNewConversation).toHaveBeenCalledWith({ refresh: true })
+    expect(windowFollowerStore.setMode).toHaveBeenCalledWith('normal')
+  })
+
+  it('opens and closes history by clicking the same panel control', async () => {
+    const { wrapper } = await setup({
+      currentRoute: 'chat',
+      selectedAgentId: 'deepchat',
+      chatSessionId: 'session-42',
+      windowFollowerMode: 'following'
+    })
+
+    await wrapper.get('[data-testid="window-follower-history"]').trigger('click')
+    expect(wrapper.get('[data-testid="window-follower-history-overlay"]')).toBeTruthy()
+
+    await wrapper.get('[data-testid="window-follower-history"]').trigger('click')
+    expect(wrapper.find('[data-testid="window-follower-history-overlay"]').exists()).toBe(false)
+  })
+
+  it('closes an open history overlay when restoring the desktop window', async () => {
+    const { wrapper, windowFollowerStore } = await setup({
+      currentRoute: 'chat',
+      selectedAgentId: 'deepchat',
+      chatSessionId: 'session-42',
+      windowFollowerMode: 'following'
+    })
+
+    await wrapper.get('[data-testid="window-follower-history"]').trigger('click')
+    expect(wrapper.get('[data-testid="window-follower-history-overlay"]')).toBeTruthy()
+
+    await wrapper.get('[data-testid="window-follower-restore-window"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="window-follower-history-overlay"]').exists()).toBe(false)
+
+    windowFollowerStore.state.mode = 'following'
+    await flushPromises()
+    expect(wrapper.find('[data-testid="window-follower-history-overlay"]').exists()).toBe(false)
+  })
+
+  it('does not render panel session controls in the normal desktop window', async () => {
+    const { wrapper } = await setup({
+      currentRoute: 'chat',
+      selectedAgentId: 'deepchat',
+      chatSessionId: 'session-42',
+      windowFollowerMode: 'normal'
+    })
+
+    expect(wrapper.find('[data-testid="window-follower-session-controls"]').exists()).toBe(false)
   })
 
   it('provides stable compact layout hooks without replacing the routed chat tree', async () => {
