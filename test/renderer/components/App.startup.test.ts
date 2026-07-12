@@ -7,6 +7,7 @@ import {
 } from '@/lib/onboardingResume'
 
 const DEV_WELCOME_OVERRIDE_KEY = '__deepchat_dev_force_welcome'
+let mountedWrappers: Array<{ unmount: () => void }> = []
 
 const mountApp = async (options?: {
   initComplete?: boolean
@@ -23,6 +24,8 @@ const mountApp = async (options?: {
     | 'skills'
     | 'plugins'
     | null
+  windowFollowerMode?: 'normal' | 'following' | 'fixed' | 'detached'
+  windowFollowerContentOffsetX?: number
 }) => {
   vi.resetModules()
 
@@ -263,6 +266,30 @@ const mountApp = async (options?: {
   const modelStore = {
     initialize: vi.fn().mockResolvedValue(undefined)
   }
+  const windowFollowerStore = reactive({
+    state: {
+      mode: options?.windowFollowerMode ?? 'normal',
+      collapsed: false,
+      panelWidth: 360,
+      automaticAdhesionAvailable: options?.windowFollowerMode !== 'normal',
+      snapshot: null,
+      permissions: {
+        platform: 'macos',
+        accessibility: 'granted',
+        screenRecording: 'granted',
+        checkedAt: 1_000
+      },
+      panelBounds: null,
+      displayBounds: [],
+      placement: null,
+      contentOffsetX: options?.windowFollowerContentOffsetX ?? 0,
+      lastError: null,
+      updatedAt: 1_000
+    },
+    initialize: vi.fn().mockResolvedValue(undefined),
+    dispose: vi.fn(),
+    setPointerInteractive: vi.fn().mockResolvedValue(undefined)
+  })
   const toast = vi.fn(() => ({ dismiss: vi.fn() }))
   const ipcOn = vi.fn(() => vi.fn())
   const ipcRemoveAllListeners = vi.fn()
@@ -402,6 +429,9 @@ const mountApp = async (options?: {
   vi.doMock('@/stores/modelStore', () => ({
     useModelStore: () => modelStore
   }))
+  vi.doMock('@/stores/windowFollower', () => ({
+    useWindowFollowerStore: () => windowFollowerStore
+  }))
   vi.doMock('@/lib/storeInitializer', () => ({
     initAppStores: vi.fn(),
     useMcpInstallDeeplinkHandler: () => ({
@@ -416,13 +446,14 @@ const mountApp = async (options?: {
   }))
   vi.doMock('@/composables/useDeviceVersion', () => ({
     useDeviceVersion: () => ({
-      isWinMacOS: false
+      isWinMacOS: false,
+      isMacOS: ref(false)
     })
   }))
 
   const App = (await import('@/App.vue')).default
 
-  mount(App, {
+  const wrapper = mount(App, {
     global: {
       stubs: {
         RouterView: true,
@@ -442,10 +473,12 @@ const mountApp = async (options?: {
       }
     }
   })
+  mountedWrappers.push(wrapper)
 
   await flushPromises()
 
   return {
+    wrapper,
     route,
     router,
     configPresenter,
@@ -457,16 +490,46 @@ const mountApp = async (options?: {
     draftStore,
     sessionStore,
     ipcOn,
-    spotlightStore
+    spotlightStore,
+    windowFollowerStore
   }
 }
 
 afterEach(() => {
+  for (const wrapper of mountedWrappers) {
+    wrapper.unmount()
+  }
+  mountedWrappers = []
   window.sessionStorage.removeItem(DEV_WELCOME_OVERRIDE_KEY)
   window.sessionStorage.removeItem(GUIDED_ONBOARDING_RESUME_STORAGE_KEY)
 })
 
 describe('App startup welcome flow', () => {
+  it('initializes the WindowFollower surface and maps reserve pointer hit-testing', async () => {
+    const { wrapper, windowFollowerStore } = await mountApp({
+      initComplete: true,
+      routeName: 'chat',
+      onboardingStatus: 'completed',
+      windowFollowerMode: 'following',
+      windowFollowerContentOffsetX: 44
+    })
+
+    const surface = wrapper.get('[data-testid="window-follower-surface"]')
+    expect(windowFollowerStore.initialize).toHaveBeenCalledOnce()
+    expect(surface.attributes('style')).toContain('width: calc(100vw - 44px)')
+    expect(surface.attributes('style')).toContain('transform: translateX(44px)')
+
+    window.dispatchEvent(new MouseEvent('mousemove', { clientX: 20 }))
+    window.dispatchEvent(new MouseEvent('mousemove', { clientX: 60 }))
+    await flushPromises()
+
+    expect(windowFollowerStore.setPointerInteractive).toHaveBeenNthCalledWith(1, false)
+    expect(windowFollowerStore.setPointerInteractive).toHaveBeenNthCalledWith(2, true)
+
+    wrapper.unmount()
+    expect(windowFollowerStore.dispose).toHaveBeenCalledOnce()
+  })
+
   it('routes to welcome when init is incomplete', async () => {
     const { router, configPresenter, onboardingClient } = await mountApp({
       initComplete: false,

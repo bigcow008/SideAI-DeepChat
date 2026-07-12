@@ -44,6 +44,8 @@ import {
 import type { GuidedOnboardingStepId } from '@shared/contracts/routes'
 import type { DatabaseRepairSuggestedPayload } from '@shared/presenter'
 import { createWindowClient } from '@api/WindowClient'
+import WindowFollowerSurface from '@/components/windowFollower/WindowFollowerSurface.vue'
+import { useWindowFollowerStore } from '@/stores/windowFollower'
 
 const DEV_WELCOME_OVERRIDE_KEY = '__deepchat_dev_force_welcome'
 
@@ -80,10 +82,31 @@ const langStore = useLanguageStore()
 const modelCheckStore = useModelCheckStore()
 const providerStore = useProviderStore()
 const modelStore = useModelStore()
+const windowFollowerStore = useWindowFollowerStore()
 const { t } = useI18n()
 const toasterTheme = computed(() =>
   themeStore.themeMode === 'system' ? (themeStore.isDark ? 'dark' : 'light') : themeStore.themeMode
 )
+
+const syncWindowFollowerSurface = () => {
+  if (typeof document === 'undefined') return
+  const isPanel = windowFollowerStore.state.mode !== 'normal'
+  document.documentElement.dataset.windowFollowerSurface = isPanel ? 'panel' : 'desktop'
+  document.documentElement.style.setProperty(
+    '--window-follower-content-offset-x',
+    `${isPanel ? windowFollowerStore.state.contentOffsetX : 0}px`
+  )
+}
+
+watch(
+  () => [windowFollowerStore.state.mode, windowFollowerStore.state.contentOffsetX] as const,
+  syncWindowFollowerSurface,
+  { immediate: true }
+)
+
+const handleWindowFollowerPointerInteractive = (interactive: boolean) => {
+  void windowFollowerStore.setPointerInteractive(interactive).catch(() => {})
+}
 // Error notification queue and currently displayed error
 const errorQueue = ref<Array<{ id: string; title: string; message: string; type: string }>>([])
 const currentErrorId = ref<string | null>(null)
@@ -522,6 +545,7 @@ watch(
 )
 
 onMounted(() => {
+  void windowFollowerStore.initialize()
   window.addEventListener('keydown', handleEscKey)
   window.addEventListener(
     GUIDED_ONBOARDING_RESUME_REQUESTED_EVENT,
@@ -586,48 +610,59 @@ onBeforeUnmount(() => {
   )
   cleanupAppIpcRuntime()
   cleanupMcpDeeplink()
+  windowFollowerStore.dispose()
 })
 </script>
 
 <template>
-  <div
-    data-testid="app-root"
-    class="flex flex-col h-screen"
-    :class="isWinMacOS ? 'bg-window-background' : 'bg-background'"
+  <WindowFollowerSurface
+    :mode="windowFollowerStore.state.mode"
+    :collapsed="windowFollowerStore.state.collapsed"
+    :content-offset-x="windowFollowerStore.state.contentOffsetX"
+    @pointer-interactive="handleWindowFollowerPointerInteractive"
   >
-    <AppBar />
-    <div class="flex flex-row h-0 grow relative overflow-hidden px-px py-px" :dir="langStore.dir">
-      <div class="flex flex-row w-full h-full">
-        <WindowSideBar></WindowSideBar>
+    <div
+      data-testid="app-root"
+      class="flex h-full flex-col"
+      :class="isWinMacOS ? 'bg-window-background' : 'bg-background'"
+    >
+      <AppBar />
+      <div
+        class="flex h-0 grow flex-row overflow-hidden px-px py-px relative"
+        :dir="langStore.dir"
+      >
+        <div class="flex h-full w-full flex-row">
+          <WindowSideBar></WindowSideBar>
 
-        <!-- Main content area -->
-        <div
-          data-testid="app-main"
-          class="flex h-full min-h-0 flex-1 min-w-0 flex-col overflow-hidden rounded-tl-xl border-l border-t border-black/20 bg-background dark:border-white/10"
-        >
-          <div class="min-h-0 flex-1">
-            <RouterView v-if="isStartupRouteReady" />
+          <!-- Main content area -->
+          <div
+            data-testid="app-main"
+            class="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-tl-xl border-l border-t border-black/20 bg-background dark:border-white/10"
+          >
+            <div class="min-h-0 flex-1">
+              <RouterView v-if="isStartupRouteReady" />
+            </div>
           </div>
         </div>
       </div>
+      <!-- Global message dialog -->
+      <MessageDialog />
+      <McpSamplingDialog />
+      <!-- Global Toast notifications -->
+      <Toaster :theme="toasterTheme" />
+      <SelectedTextContextMenu />
+      <TranslatePopup />
+      <SpotlightOverlay />
+      <!-- Global model check dialog -->
+      <ModelCheckDialog
+        :open="modelCheckStore.isDialogOpen"
+        :provider-id="modelCheckStore.currentProviderId"
+        @update:open="
+          (open) => {
+            if (!open) modelCheckStore.closeDialog()
+          }
+        "
+      />
     </div>
-    <!-- Global message dialog -->
-    <MessageDialog />
-    <McpSamplingDialog />
-    <!-- Global Toast notifications -->
-    <Toaster :theme="toasterTheme" />
-    <SelectedTextContextMenu />
-    <TranslatePopup />
-    <SpotlightOverlay />
-    <!-- Global model check dialog -->
-    <ModelCheckDialog
-      :open="modelCheckStore.isDialogOpen"
-      :provider-id="modelCheckStore.currentProviderId"
-      @update:open="
-        (open) => {
-          if (!open) modelCheckStore.closeDialog()
-        }
-      "
-    />
-  </div>
+  </WindowFollowerSurface>
 </template>
