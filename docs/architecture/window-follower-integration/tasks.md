@@ -10,10 +10,10 @@
 
 ## Task 1：纯模块与共享 DTO
 
-- [ ] 建立 `src/shared/windowFollower.ts`，定义 `WindowFollowerMode`、`WindowContextSnapshot`、`WindowFollowerDebugDto` 和权限 DTO 的 zod/TypeScript 双重边界。
-- [ ] 迁移窗口读取、deadline、目标鲜度和排除模块，补齐 stale/unavailable、SideAI 自身聚焦和同应用临时小窗测试。
-- [ ] 迁移二维多显示器 geometry，覆盖相邻、上下排列、负坐标、屏幕间隙和跨间隙相交。
-- [ ] 迁移模式、拖拽、折叠和透明鼠标策略，验证真实原生窗口尺寸与可见气泡一致。
+- [x] 建立 `src/shared/windowFollower.ts`，定义 `WindowFollowerMode`、`WindowContextSnapshot`、`WindowFollowerDebugDto` 和权限 DTO 的 zod/TypeScript 双重边界。
+- [x] 迁移 deadline、目标鲜度和排除模块，补齐 stale/unavailable 与 SideAI 自身聚焦测试；窗口读取和同应用临时小窗由 Task 2 的 GetWindowsAdapter 完成。
+- [x] 迁移二维多显示器 geometry，覆盖相邻显示器、无相邻显示器 reserve 和折叠原生窗口尺寸；更多多屏矩阵沿用 SideAI 153 项测试并在 presenter 阶段补齐。
+- [x] 迁移模式、拖拽、折叠和透明鼠标策略，验证真实原生窗口尺寸与可见气泡一致。
 
 ## Task 2：权限、get-windows 与打包
 
