@@ -1,4 +1,5 @@
 import { activeWindow, openWindows } from 'get-windows'
+import { createTimedSingleFlightReader } from './core/timedSingleFlightReader'
 
 type ActiveWindow = Awaited<ReturnType<typeof activeWindow>>
 export type WindowSnapshot = NonNullable<ActiveWindow>
@@ -15,6 +16,7 @@ const TRANSIENT_WINDOW_MAX_EDGE_RATIO = 0.72
 const TRANSIENT_TITLE_MAX_LENGTH = 24
 const TRANSIENT_PROBE_MAX_WIDTH = 640
 const TRANSIENT_PROBE_MAX_AREA = 520_000
+const TARGET_READ_TIMEOUT_MS = 500
 
 async function readWithPermissionFallback<T>(
   reader: PermissionReader<T>,
@@ -127,8 +129,27 @@ export async function readActiveWindowFromReaders(
   }
 }
 
+type GetWindowsAdapterOptions = {
+  activeReader?: PermissionReader<ActiveWindow>
+  openReader?: PermissionReader<WindowSnapshot[]>
+  timeoutMs?: number
+  now?: () => number
+}
+
 export class GetWindowsAdapter {
+  private readonly readWithTimeout: (permissions: WindowReadPermissions) => Promise<ActiveWindow>
+
+  constructor(options: GetWindowsAdapterOptions = {}) {
+    const activeReader = options.activeReader ?? activeWindow
+    const openReader = options.openReader ?? openWindows
+    this.readWithTimeout = createTimedSingleFlightReader(
+      (permissions) => readActiveWindowFromReaders(activeReader, openReader, permissions),
+      options.timeoutMs ?? TARGET_READ_TIMEOUT_MS,
+      options.now
+    )
+  }
+
   async readActiveWindow(permissions: WindowReadPermissions): Promise<ActiveWindow> {
-    return readActiveWindowFromReaders(activeWindow, openWindows, permissions)
+    return this.readWithTimeout(permissions)
   }
 }

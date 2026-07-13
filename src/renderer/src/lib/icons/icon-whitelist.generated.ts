@@ -163,6 +163,7 @@ export const GENERATED_ICON_WHITELIST: Record<GeneratedIconCollectionKey, readon
     'minus',
     'monitor',
     'monitor-cloud',
+    'monitor-cog',
     'more-horizontal',
     'mouse-pointer-click',
     'move-right',

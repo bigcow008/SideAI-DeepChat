@@ -42,7 +42,7 @@ export function createPermissionSampler<T>(
 }
 
 export function hasRequiredDesktopPermissions(status: DesktopPermissions) {
-  if (status.platform !== 'macos') return true
+  if (status.platform !== 'macos') return false
   return status.accessibility === 'granted' && status.screenRecording === 'granted'
 }
 

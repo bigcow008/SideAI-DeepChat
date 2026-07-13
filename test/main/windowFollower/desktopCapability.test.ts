@@ -41,6 +41,20 @@ describe('desktop capability', () => {
       canReadWindowContext: false,
       automaticAdhesionAvailable: false
     })
+    expect(
+      deriveAutomaticAdhesion(
+        {
+          platform: 'windows',
+          accessibility: 'not-applicable',
+          screenRecording: 'not-applicable',
+          checkedAt: 0
+        },
+        true
+      )
+    ).toEqual({
+      canReadWindowContext: false,
+      automaticAdhesionAvailable: false
+    })
   })
 
   it('does not read context while either macOS permission is missing', async () => {

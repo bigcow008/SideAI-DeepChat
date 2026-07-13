@@ -547,11 +547,11 @@ const handleBackToParent = async () => {
 </script>
 
 <style scoped>
-:global(html[data-window-follower-surface='panel']) .window-follower-topbar-copy {
+:global(html[data-window-follower-surface='panel'] .window-follower-topbar-copy) {
   display: none;
 }
 
-:global(html[data-window-follower-surface='panel']) .window-follower-topbar-debug {
+:global(html[data-window-follower-surface='panel'] .window-follower-topbar-debug) {
   display: none;
 }
 

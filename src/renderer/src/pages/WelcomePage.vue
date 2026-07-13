@@ -659,37 +659,37 @@ onMounted(() => {
   -webkit-app-region: no-drag;
 }
 
-:global(html[data-window-follower-surface='panel']) .window-follower-welcome-content {
+:global(html[data-window-follower-surface='panel'] .window-follower-welcome-content) {
   justify-content: flex-start;
   padding: 48px 12px 16px;
 }
 
-:global(html[data-window-follower-surface='panel']) .window-follower-welcome-logo {
+:global(html[data-window-follower-surface='panel'] .window-follower-welcome-logo) {
   display: none;
 }
 
-:global(html[data-window-follower-surface='panel']) .window-follower-welcome-title {
+:global(html[data-window-follower-surface='panel'] .window-follower-welcome-title) {
   margin-bottom: 4px;
   font-size: 20px;
 }
 
-:global(html[data-window-follower-surface='panel']) .window-follower-welcome-description {
+:global(html[data-window-follower-surface='panel'] .window-follower-welcome-description) {
   margin-bottom: 16px;
 }
 
-:global(html[data-window-follower-surface='panel']) .window-follower-guide-compact {
+:global(html[data-window-follower-surface='panel'] .window-follower-guide-compact) {
   max-width: calc(100vw - var(--window-follower-content-offset-x, 0px) - 24px);
   margin-bottom: 12px;
   border-radius: 8px;
   padding: 12px;
 }
 
-:global(html[data-window-follower-surface='panel']) .window-follower-guide-steps,
-:global(html[data-window-follower-surface='panel']) .window-follower-provider-compact {
+:global(html[data-window-follower-surface='panel'] .window-follower-guide-steps),
+:global(html[data-window-follower-surface='panel'] .window-follower-provider-compact) {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-:global(html[data-window-follower-surface='panel']) .window-follower-provider-button {
+:global(html[data-window-follower-surface='panel'] .window-follower-provider-button) {
   min-height: 40px;
   flex-direction: row;
   justify-content: flex-start;
@@ -697,7 +697,7 @@ onMounted(() => {
   padding: 8px;
 }
 
-:global(html[data-window-follower-surface='panel']) .window-follower-welcome-provider-actions {
+:global(html[data-window-follower-surface='panel'] .window-follower-welcome-provider-actions) {
   margin-bottom: 20px;
 }
 

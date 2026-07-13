@@ -266,7 +266,7 @@ function handlePrimaryAction() {
 </script>
 
 <style scoped>
-:global(html[data-window-follower-surface='panel']) .window-follower-compact {
+:global(html[data-window-follower-surface='panel'] .window-follower-compact) {
   flex-wrap: wrap;
   gap: 0.25rem;
 }

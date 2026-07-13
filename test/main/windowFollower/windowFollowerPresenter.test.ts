@@ -112,6 +112,38 @@ describe('WindowFollowerPresenter', () => {
     expect(window.setAlwaysOnTop).toHaveBeenLastCalledWith(false)
   })
 
+  it.each(['fixed', 'detached'] as const)('resumes following from %s mode', async (mode) => {
+    const window = createWindow()
+    const targetBounds = { x: 100, y: 100, width: 900, height: 700 }
+    const refreshContext = vi.fn(async () => ({
+      permissions: grantedPermissions,
+      canReadWindowContext: true,
+      automaticAdhesionAvailable: true,
+      snapshot: {
+        source: 'retained-while-sideai-focused' as const,
+        freshness: 'retained' as const,
+        window: { bounds: targetBounds }
+      },
+      lastError: null
+    }))
+    const presenter = new WindowFollowerPresenter({
+      getWindow: () => window,
+      getDisplayMatching: () => primary,
+      getAllDisplays: () => [primary],
+      refreshContext
+    })
+    presenter.followTarget(targetBounds)
+    mode === 'fixed' ? presenter.setFixed(true) : presenter.setDetached(true)
+
+    expect(presenter.setMode('following')).toBe(true)
+    expect(presenter.mode).toBe('following')
+    expect(window.showInactive).toHaveBeenCalledTimes(2)
+    expect(window.setAlwaysOnTop).toHaveBeenLastCalledWith(true)
+
+    await presenter.refresh()
+    expect(presenter.mode).toBe('following')
+  })
+
   it('collapses and expands the native window without replacing it', () => {
     const window = createWindow()
     const presenter = new WindowFollowerPresenter({
@@ -151,7 +183,7 @@ describe('WindowFollowerPresenter', () => {
     expect(window.getBounds()).toEqual({ x: 1320, y: 240, width: 480, height: 700 })
   })
 
-  it('removes the transparent reserve before a followed panel becomes stationary', () => {
+  it('keeps a display-constrained followed panel stationary without shifting', () => {
     const window = createWindow()
     const presenter = new WindowFollowerPresenter({
       getWindow: () => window,
@@ -160,11 +192,11 @@ describe('WindowFollowerPresenter', () => {
     })
     presenter.followTarget({ x: 0, y: 0, width: 1728, height: 1080 })
 
-    expect(window.getBounds()).toEqual({ x: 1688, y: 0, width: 404, height: 1080 })
+    expect(window.getBounds()).toEqual({ x: 1368, y: 0, width: 360, height: 1080 })
 
     presenter.setFixed(true)
 
-    expect(window.getBounds()).toEqual({ x: 1732, y: 0, width: 360, height: 1080 })
+    expect(window.getBounds()).toEqual({ x: 1368, y: 0, width: 360, height: 1080 })
     expect(presenter.getDebugState().contentOffsetX).toBe(0)
   })
 
@@ -544,6 +576,46 @@ describe('WindowFollowerPresenter', () => {
     expect(presenter.getDebugState().lastError).toBe('目标应用已排除')
   })
 
+  it('hides an excluded target and shows again for the next allowed target', async () => {
+    const window = createWindow()
+    const targetBounds = { x: 100, y: 100, width: 900, height: 700 }
+    const refreshContext = vi
+      .fn()
+      .mockResolvedValueOnce({
+        permissions: grantedPermissions,
+        canReadWindowContext: true,
+        automaticAdhesionAvailable: true,
+        snapshot: null,
+        targetExcluded: true,
+        lastError: '目标应用已排除'
+      })
+      .mockResolvedValueOnce({
+        permissions: grantedPermissions,
+        canReadWindowContext: true,
+        automaticAdhesionAvailable: true,
+        snapshot: {
+          source: 'active' as const,
+          freshness: 'live' as const,
+          window: { bounds: targetBounds }
+        },
+        targetExcluded: false,
+        lastError: null
+      })
+    const presenter = new WindowFollowerPresenter({
+      getWindow: () => window,
+      getDisplayMatching: () => primary,
+      getAllDisplays: () => [primary],
+      refreshContext
+    })
+    presenter.followTarget(targetBounds)
+
+    await presenter.refresh()
+    expect(window.hide).toHaveBeenCalledOnce()
+
+    await presenter.refresh()
+    expect(window.showInactive).toHaveBeenCalledTimes(2)
+  })
+
   it('hides only the primary window and requests quit through the lifecycle callback', () => {
     const window = createWindow()
     const requestQuit = vi.fn()
@@ -559,5 +631,38 @@ describe('WindowFollowerPresenter', () => {
 
     expect(window.hide).toHaveBeenCalledOnce()
     expect(requestQuit).toHaveBeenCalledOnce()
+  })
+
+  it('keeps an explicitly hidden panel hidden until normal mode restores it', async () => {
+    const window = createWindow()
+    const targetBounds = { x: 100, y: 100, width: 900, height: 700 }
+    const refreshContext = vi.fn(async () => ({
+      permissions: grantedPermissions,
+      canReadWindowContext: true,
+      automaticAdhesionAvailable: true,
+      snapshot: {
+        source: 'active' as const,
+        freshness: 'live' as const,
+        window: { bounds: targetBounds }
+      },
+      targetExcluded: false,
+      lastError: null
+    }))
+    const presenter = new WindowFollowerPresenter({
+      getWindow: () => window,
+      getDisplayMatching: () => primary,
+      getAllDisplays: () => [primary],
+      refreshContext
+    })
+    presenter.followTarget(targetBounds)
+    presenter.hide()
+
+    await presenter.refresh()
+
+    expect(window.hide).toHaveBeenCalledOnce()
+    expect(window.showInactive).toHaveBeenCalledOnce()
+
+    presenter.returnToNormal(true)
+    expect(window.show).toHaveBeenCalledOnce()
   })
 })

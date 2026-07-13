@@ -49,6 +49,7 @@ import WindowFollowerToolbar from '@/components/windowFollower/WindowFollowerToo
 import WindowFollowerCollapsedBubble from '@/components/windowFollower/WindowFollowerCollapsedBubble.vue'
 import WindowFollowerResizeHandle from '@/components/windowFollower/WindowFollowerResizeHandle.vue'
 import WindowFollowerSettingsPanel from '@/components/windowFollower/WindowFollowerSettingsPanel.vue'
+import WindowFollowerDesktopNotice from '@/components/windowFollower/WindowFollowerDesktopNotice.vue'
 import { useWindowFollowerStore } from '@/stores/windowFollower'
 
 const DEV_WELCOME_OVERRIDE_KEY = '__deepchat_dev_force_welcome'
@@ -648,9 +649,12 @@ onBeforeUnmount(() => {
         @open-settings="windowFollowerSettingsOpen = true"
       />
       <AppBar v-show="!isWindowFollowerPanel" />
+      <WindowFollowerDesktopNotice v-show="!isWindowFollowerPanel" />
       <div class="flex h-0 grow flex-row overflow-hidden px-px py-px relative" :dir="langStore.dir">
         <div class="flex h-full w-full flex-row">
-          <WindowSideBar v-show="!isWindowFollowerPanel"></WindowSideBar>
+          <div v-show="!isWindowFollowerPanel" class="contents">
+            <WindowSideBar />
+          </div>
 
           <!-- Main content area -->
           <div

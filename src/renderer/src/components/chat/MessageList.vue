@@ -144,7 +144,7 @@ const handleCopyImage = async (
 </script>
 
 <style scoped>
-:global(html[data-window-follower-surface='panel']) .window-follower-message-content {
+:global(html[data-window-follower-surface='panel'] .window-follower-message-content) {
   padding-inline: 0.75rem;
 }
 </style>

@@ -71,6 +71,30 @@ describe('WindowContextService', () => {
     expect(Object.isFrozen(result.snapshot)).toBe(true)
   })
 
+  it('degrades a failed native read without rejecting the polling loop', async () => {
+    let now = 1_000
+    const readActiveWindow = vi
+      .fn()
+      .mockResolvedValueOnce(vscodeWindow)
+      .mockRejectedValueOnce(new Error('native read timed out'))
+    const service = new WindowContextService({
+      permissionService: permissionService(),
+      readActiveWindow,
+      getPreference: () => true,
+      ownProcessId: 99,
+      ownAppName: 'DeepChat',
+      now: () => now
+    })
+    await service.refresh()
+    now = 1_500
+
+    const result = await service.refresh()
+
+    expect(result.snapshot?.freshness).toBe('grace')
+    expect(result.targetExcluded).toBe(false)
+    expect(result.lastError).toContain('native read timed out')
+  })
+
   it('retains the last external target while SideAI itself is focused without refreshing capturedAt', async () => {
     let now = 2_000
     let current = vscodeWindow

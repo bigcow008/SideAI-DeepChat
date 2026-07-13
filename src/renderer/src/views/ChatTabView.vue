@@ -213,11 +213,11 @@ onBeforeUnmount(() => {
   flex: 1 1 0%;
 }
 
-:global(html[data-window-follower-surface='panel']) .window-follower-chat-layout {
+:global(html[data-window-follower-surface='panel'] .window-follower-chat-layout) {
   isolation: isolate;
 }
 
-:global(html[data-window-follower-surface='panel']) .window-follower-chat-main {
+:global(html[data-window-follower-surface='panel'] .window-follower-chat-main) {
   width: 100%;
 }
 </style>

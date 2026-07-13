@@ -89,6 +89,7 @@ export class WindowFollowerPresenter {
   #refreshInFlight: Promise<void> | null = null
   #refreshInFlightForcesPermissions = false
   #waitForExternalActivation = false
+  #hidden = false
   #lastRefreshResult: WindowContextRefreshResult | null = null
   #lastPanelResult: PanelBoundsResult | null = null
   #contentOffsetX = 0
@@ -195,7 +196,23 @@ export class WindowFollowerPresenter {
     if (mode === 'normal') return this.returnToNormal(true)
     if (mode === 'fixed') return this.setFixed(true)
     if (mode === 'detached') return this.setDetached(true)
-    void this.refresh(true)
+    return this.setFollowing()
+  }
+
+  setFollowing(): boolean {
+    const window = this.resolveWindow()
+    if (!window) return false
+
+    this.#mode = 'following'
+    this.#stationaryExpandedBounds = null
+    window.setAlwaysOnTop(true)
+    if (this.#lastTargetBounds) {
+      this.applyFollowBounds(window)
+      if (!this.#hidden) window.showInactive()
+    } else {
+      void this.refresh(true)
+    }
+    this.publishStateIfChanged()
     return true
   }
 
@@ -217,7 +234,7 @@ export class WindowFollowerPresenter {
     this.#lastTargetBounds = { ...targetBounds }
     this.applyFollowBounds(window)
     window.setAlwaysOnTop(true)
-    window.showInactive()
+    if (!this.#hidden) window.showInactive()
     this.publishStateIfChanged()
     return true
   }
@@ -234,6 +251,7 @@ export class WindowFollowerPresenter {
     this.#stationaryExpandedBounds = null
     this.#expectedProgrammaticBounds = null
     this.#waitForExternalActivation = true
+    this.#hidden = false
     if (!window) return false
 
     window.setAlwaysOnTop(false)
@@ -350,6 +368,7 @@ export class WindowFollowerPresenter {
   hide(): boolean {
     const window = this.resolveWindow()
     if (!window) return false
+    this.#hidden = true
     window.hide()
     return true
   }
@@ -385,7 +404,7 @@ export class WindowFollowerPresenter {
       displays: this.dependencies.getAllDisplays(),
       userCollapsed: this.#collapsed,
       panelWidth: this.#panelWidth,
-      constrainWindowToVisibleReserve: true
+      constrainWindowToDisplay: true
     })
     this.#lastPanelResult = result
     this.#contentOffsetX = result.contentOffsetX
@@ -500,6 +519,12 @@ export class WindowFollowerPresenter {
     this.#lastRefreshResult = result
     if (!result.automaticAdhesionAvailable) {
       if (this.#mode === 'following') this.returnToNormal(false)
+      this.publishStateIfChanged()
+      return
+    }
+
+    if (result.targetExcluded) {
+      this.resolveWindow()?.hide()
       this.publishStateIfChanged()
       return
     }

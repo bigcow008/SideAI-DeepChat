@@ -509,6 +509,9 @@ const mountApp = async (options?: {
             '<button data-testid="window-follower-settings-stub" @click="$emit(\'close\')" />',
           emits: ['close']
         },
+        WindowFollowerDesktopNotice: {
+          template: '<div data-testid="window-follower-desktop-notice-stub" />'
+        },
         UpdateDialog: true,
         MessageDialog: true,
         McpSamplingDialog: true,
@@ -591,6 +594,9 @@ describe('App startup welcome flow', () => {
     expect(wrapper.get('[data-testid="window-follower-toolbar-stub"]').isVisible()).toBe(false)
     expect(wrapper.get('[data-testid="window-follower-resize-stub"]').isVisible()).toBe(false)
     expect(wrapper.find('[data-testid="window-follower-bubble-stub"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="window-follower-desktop-notice-stub"]').isVisible()).toBe(
+      true
+    )
   })
 
   it('shows desktop chrome only in normal mode and keeps the same routed DOM node', async () => {
@@ -611,6 +617,9 @@ describe('App startup welcome flow', () => {
     expect(wrapper.get('[data-testid="desktop-app-bar"]').isVisible()).toBe(false)
     expect(wrapper.get('[data-testid="desktop-window-sidebar"]').isVisible()).toBe(false)
     expect(wrapper.get('[data-testid="window-follower-toolbar-stub"]').isVisible()).toBe(true)
+    expect(wrapper.get('[data-testid="window-follower-desktop-notice-stub"]').isVisible()).toBe(
+      false
+    )
     expect(wrapper.get('[data-testid="router-content"]').element).toBe(routedNode)
   })
 

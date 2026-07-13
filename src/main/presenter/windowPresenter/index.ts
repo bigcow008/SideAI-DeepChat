@@ -36,7 +36,7 @@ import { FloatingChatWindow } from './FloatingChatWindow' // Floating chat windo
 import type { ProviderInstallPreview } from '@shared/providerDeeplink'
 import { StartupWorkloadCoordinator } from '../startupWorkloadCoordinator'
 import { openExternalUrl } from '@/lib/externalUrl'
-import { activateAppOnMac } from '@/lib/activateApp'
+import { activateAppOnMac, ensureRegularAppOnMac } from '@/lib/activateApp'
 import { DEEPCHAT_EVENT_CHANNEL } from '@shared/contracts/channels'
 import { createDeepchatEventEnvelope, publishDeepchatEvent } from '@/routes/publishDeepchatEvent'
 import {
@@ -68,6 +68,8 @@ export class WindowPresenter implements IWindowPresenter {
   private mainWindowId: number | null = null
   private mainWindowStateManager: ReturnType<typeof windowStateManager> | null = null
   private mainWindowStateTrackingSuspended = false
+  private mainWindowFollowerPresentationActive = false
+  private mainWindowDockRestoreTimer: ReturnType<typeof setTimeout> | null = null
   // Tracks close-to-hide separately from the native macOS Hide command.
   private mainWindowHiddenByClose = false
   private floatingChatWindow: FloatingChatWindow | null = null
@@ -194,22 +196,37 @@ export class WindowPresenter implements IWindowPresenter {
   }): void {
     const window = this.getPrimaryWindow()
     if (!window) return
+    const enteringPanelPresentation = !this.mainWindowFollowerPresentationActive
+    this.mainWindowFollowerPresentationActive = true
 
-    window.setMinimumSize(36, 36)
-    window.setResizable(false)
-    window.setMinimizable(false)
-    window.setMaximizable(false)
-    window.setFullScreenable(false)
-    if (process.platform === 'darwin') {
-      window.setWindowButtonVisibility(false)
-      window.setVibrancy(null)
+    if (enteringPanelPresentation) {
+      window.setMinimumSize(36, 36)
+      window.setResizable(false)
+      window.setMinimizable(false)
+      window.setMaximizable(false)
+      window.setFullScreenable(false)
+      if (process.platform === 'darwin') {
+        window.setWindowButtonVisibility(false)
+        window.setVibrancy('under-window')
+      }
+      window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+      if (process.platform === 'darwin') {
+        ensureRegularAppOnMac()
+        this.mainWindowDockRestoreTimer = setTimeout(() => {
+          this.mainWindowDockRestoreTimer = null
+          if (this.mainWindowFollowerPresentationActive) ensureRegularAppOnMac()
+        }, 150)
+      }
     }
     window.setHasShadow(!options.collapsed && !options.hasTransparentReserve)
-    window.setSkipTaskbar(true)
-    window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
   }
 
   restorePrimaryWindowPresentation(): void {
+    this.mainWindowFollowerPresentationActive = false
+    if (this.mainWindowDockRestoreTimer) {
+      clearTimeout(this.mainWindowDockRestoreTimer)
+      this.mainWindowDockRestoreTimer = null
+    }
     const window = this.getPrimaryWindow()
     if (!window) return
 
@@ -1002,6 +1019,11 @@ export class WindowPresenter implements IWindowPresenter {
         this.mainWindowHiddenByClose = false
         this.mainWindowStateManager = null
         this.mainWindowStateTrackingSuspended = false
+        this.mainWindowFollowerPresentationActive = false
+        if (this.mainWindowDockRestoreTimer) {
+          clearTimeout(this.mainWindowDockRestoreTimer)
+          this.mainWindowDockRestoreTimer = null
+        }
       }
       managedWindowState.unmanage() // 停止管理窗口状态
       eventBus.sendToMain(WINDOW_EVENTS.WINDOW_CLOSED, windowIdBeingClosed)
@@ -1499,11 +1521,6 @@ export class WindowPresenter implements IWindowPresenter {
     console.info(
       `[Startup][Settings][Main] loadURL end windowId=${windowId} elapsed=${Date.now() - settingsStartupStart}ms`
     )
-
-    // Open DevTools in development mode
-    if (is.dev) {
-      settingsWindow.webContents.openDevTools({ mode: 'detach' })
-    }
 
     logger.info(`Settings window ${windowId} created successfully.`)
     return windowId

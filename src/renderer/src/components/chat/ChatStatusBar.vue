@@ -3064,7 +3064,7 @@ defineExpose({
 </script>
 
 <style scoped>
-:global(html[data-window-follower-surface='panel']) .window-follower-status-scroll {
+:global(html[data-window-follower-surface='panel'] .window-follower-status-scroll) {
   justify-content: flex-start;
   gap: 0.25rem;
   overflow-x: auto;
@@ -3072,12 +3072,13 @@ defineExpose({
   scrollbar-width: none;
 }
 
-:global(html[data-window-follower-surface='panel'])
-  .window-follower-status-scroll::-webkit-scrollbar {
+:global(
+  html[data-window-follower-surface='panel'] .window-follower-status-scroll::-webkit-scrollbar
+) {
   display: none;
 }
 
-:global(html[data-window-follower-surface='panel']) .window-follower-status-scroll > div {
+:global(html[data-window-follower-surface='panel'] .window-follower-status-scroll > div) {
   flex: 0 0 auto;
 }
 </style>

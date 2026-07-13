@@ -10,8 +10,7 @@ import {
 } from '@/windowFollower/core/targetTracker'
 import {
   calculatePanelBoundsForDisplay,
-  COLLAPSED_BUBBLE_SIZE,
-  RIGHT_EDGE_VISIBLE_RESERVE
+  COLLAPSED_BUBBLE_SIZE
 } from '@/windowFollower/core/panelBounds'
 import {
   shouldFollowTarget,
@@ -102,24 +101,38 @@ describe('multi-display panel geometry', () => {
       display: primary,
       displays: [primary, right],
       userCollapsed: false,
-      constrainWindowToVisibleReserve: true
+      constrainWindowToDisplay: true
     })
 
     expect(result.contentOffsetX).toBe(0)
     expect(result.bounds.x).toBe(1732)
   })
 
-  it('keeps the reserve when the real content intersects no display', () => {
+  it('keeps the full panel visible when no display can contain it to the right', () => {
     const result = calculatePanelBoundsForDisplay({
       targetBounds: { x: 0, y: 0, width: 1728, height: 1080 },
       display: primary,
       displays: [primary],
       userCollapsed: false,
-      constrainWindowToVisibleReserve: true
+      constrainWindowToDisplay: true
     })
 
-    expect(result.contentOffsetX).toBe(RIGHT_EDGE_VISIBLE_RESERVE)
-    expect(result.bounds.width).toBe(360 + RIGHT_EDGE_VISIBLE_RESERVE)
+    expect(result.placement).toBe('screen-right')
+    expect(result.contentOffsetX).toBe(0)
+    expect(result.bounds).toMatchObject({ x: 1368, width: 360 })
+  })
+
+  it('does not treat a narrow on-screen sliver as a visible panel', () => {
+    const result = calculatePanelBoundsForDisplay({
+      targetBounds: { x: 99, y: 61, width: 1566, height: 1004 },
+      display: primary,
+      displays: [primary],
+      userCollapsed: false,
+      constrainWindowToDisplay: true
+    })
+
+    expect(result.placement).toBe('screen-right')
+    expect(result.bounds).toEqual({ x: 1368, y: 61, width: 360, height: 1004 })
   })
 
   it('collapses the native window to the real bubble size', () => {

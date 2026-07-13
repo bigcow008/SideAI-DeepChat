@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  GetWindowsAdapter,
   readActiveWindowFromReaders,
   readActiveWindowWithBoundsFallback,
   selectBestTargetWindow
 } from '@/windowFollower/getWindowsAdapter'
+import { TargetReadTimeoutError } from '@/windowFollower/core/timedSingleFlightReader'
 
 const snapshot = {
   platform: 'macos',
@@ -70,5 +72,27 @@ describe('GetWindowsAdapter', () => {
       bounds: { x: 120, y: 80, width: 1180, height: 820 }
     }
     expect(selectBestTargetWindow(secondary, [secondary, main])?.id).toBe(secondary.id)
+  })
+
+  it('times out a native read instead of blocking every later refresh forever', async () => {
+    vi.useFakeTimers()
+    try {
+      const adapter = new GetWindowsAdapter({
+        activeReader: () => new Promise(() => {}),
+        openReader: async () => [],
+        timeoutMs: 100
+      })
+      const read = adapter.readActiveWindow({
+        accessibilityPermission: true,
+        screenRecordingPermission: true
+      })
+      const rejection = expect(read).rejects.toBeInstanceOf(TargetReadTimeoutError)
+
+      await vi.advanceTimersByTimeAsync(101)
+
+      await rejection
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

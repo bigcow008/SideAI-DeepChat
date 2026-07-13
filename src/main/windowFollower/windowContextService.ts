@@ -1,6 +1,6 @@
 import type { WindowContextSnapshot, WindowFollowerSettingsDto } from '@shared/windowFollower'
 import type { DesktopPermissionService } from './desktopPermissionService'
-import { readDesktopContextWhenAvailable } from './desktopCapability'
+import { deriveAutomaticAdhesion, readDesktopContextWhenAvailable } from './desktopCapability'
 import type { WindowSnapshot, WindowReadPermissions } from './getWindowsAdapter'
 import {
   recordLiveTarget,
@@ -31,10 +31,15 @@ export type WindowContextRefreshResult = {
   canReadWindowContext: boolean
   automaticAdhesionAvailable: boolean
   snapshot: WindowContextSnapshot | null
+  targetExcluded: boolean
   lastError: string | null
 }
 
 const TARGET_GRACE_MS = 1_000
+
+function errorText(error: unknown) {
+  return error instanceof Error ? error.message : String(error)
+}
 
 function deepFreeze<T>(value: T): T {
   if (typeof value !== 'object' || value === null || Object.isFrozen(value)) return value
@@ -92,22 +97,50 @@ export class WindowContextService {
   }
 
   async refresh(forcePermissions = false): Promise<WindowContextRefreshResult> {
-    const capability = await readDesktopContextWhenAvailable({
-      getPermissionSample: () => this.dependencies.permissionService.sample(forcePermissions),
-      getPreference: this.dependencies.getPreference,
-      read: (permissions) =>
-        this.dependencies.readActiveWindow({
-          accessibilityPermission: permissions.accessibility === 'granted',
-          screenRecordingPermission: permissions.screenRecording === 'granted'
-        })
-    })
+    let capability
+    try {
+      capability = await readDesktopContextWhenAvailable({
+        getPermissionSample: () => this.dependencies.permissionService.sample(forcePermissions),
+        getPreference: this.dependencies.getPreference,
+        read: (permissions) =>
+          this.dependencies.readActiveWindow({
+            accessibilityPermission: permissions.accessibility === 'granted',
+            screenRecordingPermission: permissions.screenRecording === 'granted'
+          })
+      })
+    } catch (error) {
+      const permissions = this.dependencies.permissionService.sample(forcePermissions).value
+      const permissionCapability = deriveAutomaticAdhesion(
+        permissions,
+        this.dependencies.getPreference()
+      )
+      this.targetState = recordTargetMiss(
+        this.targetState,
+        this.now(),
+        errorText(error),
+        TARGET_GRACE_MS
+      )
+      return {
+        permissions,
+        ...permissionCapability,
+        snapshot: this.buildSnapshot(permissions),
+        targetExcluded: false,
+        lastError: this.targetState.error
+      }
+    }
 
     if (!capability.canReadWindowContext) {
       this.targetState = recordTargetUnavailable(this.targetState, '窗口读取权限不足')
-      return { ...capability, snapshot: null, lastError: this.targetState.error }
+      return {
+        ...capability,
+        snapshot: null,
+        targetExcluded: false,
+        lastError: this.targetState.error
+      }
     }
 
     const current = capability.context
+    let targetExcluded = false
     if (!current) {
       this.targetState = recordTargetMiss(
         this.targetState,
@@ -118,6 +151,7 @@ export class WindowContextService {
     } else if (this.isOwnWindow(current)) {
       this.targetState = retainTargetWhileSelfFocused(this.targetState)
     } else if (isOwnerExcluded(current.owner, this.excludedApps)) {
+      targetExcluded = true
       this.targetState = recordTargetUnavailable(this.targetState, '目标应用已排除')
     } else {
       this.targetState = recordLiveTarget(current, this.now())
@@ -126,6 +160,7 @@ export class WindowContextService {
     return {
       ...capability,
       snapshot: this.buildSnapshot(capability.permissions),
+      targetExcluded,
       lastError: this.targetState.error
     }
   }

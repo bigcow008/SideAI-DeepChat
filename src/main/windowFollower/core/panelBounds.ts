@@ -8,7 +8,6 @@ export const MIN_PANEL_HEIGHT = 400
 export const EDGE_GAP = 4
 export const RIGHT_EDGE_OVERFLOW_TOLERANCE = 64
 export const RIGHT_EDGE_WIDE_WINDOW_RATIO = 0.85
-export const RIGHT_EDGE_VISIBLE_RESERVE = 44
 
 type DisplayBounds = {
   bounds: Bounds
@@ -29,12 +28,9 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
 }
 
-function rectanglesIntersect(first: Bounds, second: Bounds) {
+function horizontallyContains(container: Bounds, candidate: Bounds) {
   return (
-    first.x < second.x + second.width &&
-    first.x + first.width > second.x &&
-    first.y < second.y + second.height &&
-    first.y + first.height > second.y
+    candidate.x >= container.x && candidate.x + candidate.width <= container.x + container.width
   )
 }
 
@@ -64,14 +60,14 @@ export function calculatePanelBoundsForDisplay({
   displays = [display],
   userCollapsed,
   panelWidth,
-  constrainWindowToVisibleReserve = false
+  constrainWindowToDisplay = false
 }: {
   targetBounds: Bounds | null
   display: DisplayBounds
   displays?: DisplayBounds[]
   userCollapsed: boolean
   panelWidth?: number
-  constrainWindowToVisibleReserve?: boolean
+  constrainWindowToDisplay?: boolean
 }): PanelBoundsResult {
   const workArea = display.workArea
   const desiredHeight = targetBounds ? targetBounds.height : workArea.height
@@ -102,24 +98,32 @@ export function calculatePanelBoundsForDisplay({
   }
 
   const anchorX = rightEdgeAnchorX(targetBounds, display)
-  const y = userCollapsed
-    ? Math.round(targetBounds.y + COLLAPSED_BUBBLE_TOP_OFFSET)
-    : Math.round(targetBounds.y)
+  const desiredY = userCollapsed ? targetBounds.y + COLLAPSED_BUBBLE_TOP_OFFSET : targetBounds.y
+  const y = Math.round(clamp(desiredY, workArea.y, workArea.y + workArea.height - height))
   const contentScreenX = Math.round(anchorX + EDGE_GAP)
   const contentBounds = { x: contentScreenX, y, width: actualWidth, height }
-  const shouldUseVisibleReserve = !displays.some((candidate) =>
-    rectanglesIntersect(contentBounds, candidate.bounds)
+  const contentFitsDisplay = displays.some((candidate) =>
+    horizontallyContains(candidate.bounds, contentBounds)
   )
-  const contentOffsetX =
-    shouldUseVisibleReserve && constrainWindowToVisibleReserve ? RIGHT_EDGE_VISIBLE_RESERVE : 0
-  const x = contentOffsetX > 0 ? contentScreenX - contentOffsetX : contentScreenX
+
+  if (constrainWindowToDisplay && !contentFitsDisplay) {
+    const x = Math.round(workArea.x + workArea.width - actualWidth)
+    return {
+      bounds: { x, y, width: actualWidth, height },
+      placement: 'screen-right',
+      actualCollapsed: userCollapsed,
+      autoCollapsed: false,
+      contentOffsetX: 0,
+      contentScreenX: x
+    }
+  }
 
   return {
-    bounds: { x, y, width: actualWidth + contentOffsetX, height },
+    bounds: { x: contentScreenX, y, width: actualWidth, height },
     placement: userCollapsed ? 'rail-right' : 'right',
     actualCollapsed: userCollapsed,
     autoCollapsed: false,
-    contentOffsetX,
+    contentOffsetX: 0,
     contentScreenX
   }
 }

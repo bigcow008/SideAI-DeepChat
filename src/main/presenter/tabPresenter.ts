@@ -191,11 +191,6 @@ export class TabPresenter implements ITabPresenter {
       view.webContents.loadURL(url)
     }
 
-    // 开发模式下自动打开 DevTools
-    if (is.dev) {
-      view.webContents.openDevTools({ mode: 'detach' })
-    }
-
     // 存储标签信息
     const tabId = view.webContents.id
     this.tabs.set(tabId, view)

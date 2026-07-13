@@ -106,7 +106,7 @@ onBeforeUnmount(() => {
 .window-follower-surface {
   height: 100vh;
   overflow: hidden;
-  background: hsl(var(--background));
+  background: var(--background);
 }
 
 .window-follower-collapsed-layer {

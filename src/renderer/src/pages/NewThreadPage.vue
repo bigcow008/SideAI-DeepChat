@@ -1247,28 +1247,28 @@ watch(
 </script>
 
 <style scoped>
-:global(html[data-window-follower-surface='panel']) .new-thread-page__content {
+:global(html[data-window-follower-surface='panel'] .new-thread-page__content) {
   justify-content: center;
   overflow-y: auto;
   padding: 0.75rem;
 }
 
-:global(html[data-window-follower-surface='panel']) .new-thread-page__logo {
+:global(html[data-window-follower-surface='panel'] .new-thread-page__logo) {
   display: none;
 }
 
-:global(html[data-window-follower-surface='panel']) .new-thread-page__title {
+:global(html[data-window-follower-surface='panel'] .new-thread-page__title) {
   margin-bottom: 0.5rem;
   font-size: 1.25rem;
   line-height: 1.75rem;
 }
 
-:global(html[data-window-follower-surface='panel']) .new-thread-page__project-trigger {
+:global(html[data-window-follower-surface='panel'] .new-thread-page__project-trigger) {
   max-width: 100%;
   margin-bottom: 0.75rem;
 }
 
-:global(html[data-window-follower-surface='panel']) .new-thread-page__composer {
+:global(html[data-window-follower-surface='panel'] .new-thread-page__composer) {
   flex: 0 0 auto;
   min-width: 0;
 }
