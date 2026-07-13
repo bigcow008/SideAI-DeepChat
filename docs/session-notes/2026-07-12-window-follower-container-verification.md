@@ -136,3 +136,12 @@ ACP registry 刷新内容：`fast-agent` 0.9.5 -> 0.9.6、`grok-build` 0.2.98 ->
 2. 继续逐项验收贴边、透明 reserve、工具栏、折叠、固定、脱吸附、历史浮层和真实聊天。
 3. 继续确认 normal、panel、collapsed 的同一 `BrowserWindow` / `webContents.id` 实机证据。
 4. 新修改应从已更新的 `origin/dev` 创建新分支，不继续向本次已合并功能分支追加问题修复。
+
+### 合并完成状态
+
+- 远端功能分支已推送至 `b9eb3b77`。
+- 功能分支与 `origin/dev` 合并时仅 `src/types/i18n.d.ts` 出现冲突；保留了 `dev` 的
+  `loadMore` 翻译类型后解决，业务代码无冲突。
+- 合并提交为 `33eb739c`（`merge(sideai): 合入贴边窗口融合`），已推送到远端 `dev`。
+- 合并结果再次通过 26 个相关测试文件、158 项测试，以及 `format:check`、`i18n`、`lint`、
+  完整 `typecheck` 和生产构建。
