@@ -57,6 +57,17 @@ vi.mock('@shadcn/components/ui/tooltip', () => ({
 }))
 
 describe('ChatInputToolbar', () => {
+  it('keeps attachment and send controls reachable in the compact toolbar', async () => {
+    const ChatInputToolbar = (await import('@/components/chat/ChatInputToolbar.vue')).default
+    const wrapper = mount(ChatInputToolbar)
+
+    expect(wrapper.get('[data-testid="chat-input-toolbar"]').classes()).toContain(
+      'window-follower-compact'
+    )
+    expect(wrapper.get('[data-testid="chat-attach-button"]')).toBeTruthy()
+    expect(wrapper.get('[data-testid="chat-send-button"]')).toBeTruthy()
+  })
+
   it('switches from stop to queue when draft input appears during generation', async () => {
     const ChatInputToolbar = (await import('@/components/chat/ChatInputToolbar.vue')).default
     const wrapper = mount(ChatInputToolbar, {

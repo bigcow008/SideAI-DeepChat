@@ -1,10 +1,13 @@
 <template>
   <div
     data-testid="chat-side-panel-shell"
-    class="chat-side-panel-shell h-full min-h-0 overflow-hidden"
+    class="chat-side-panel-shell window-follower-side-panel-overlay h-full min-h-0 overflow-hidden"
     :class="[
       isWorkspaceFullscreenActive ? 'absolute inset-0 w-full' : 'relative shrink-0',
-      { 'chat-side-panel-shell--resizing': isResizing }
+      {
+        'chat-side-panel-shell--resizing': isResizing,
+        'window-follower-side-panel-overlay--closed': !shouldShow
+      }
     ]"
     :style="shellStyle"
     :data-workspace-fullscreen="String(isWorkspaceFullscreenActive)"
@@ -353,6 +356,35 @@ onBeforeUnmount(() => {
 
 .chat-side-panel-shell--resizing {
   transition: none;
+}
+
+:global(html[data-window-follower-surface='panel'] .window-follower-side-panel-overlay) {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: var(--dc-z-sidepanel);
+  width: 100% !important;
+  max-width: 100%;
+}
+
+:global(html[data-window-follower-surface='panel'] .window-follower-side-panel-overlay--closed) {
+  width: 0 !important;
+  pointer-events: none;
+}
+
+:global(
+  html[data-window-follower-surface='panel']
+    .window-follower-side-panel-overlay
+    .chat-side-panel-surface
+) {
+  border-left: 0;
+}
+
+:global(
+  html[data-window-follower-surface='panel']
+    .window-follower-side-panel-overlay
+    [data-testid='chat-side-panel-resize-handle']
+) {
+  display: none;
 }
 
 @keyframes workspace-panel-fullscreen-enter {

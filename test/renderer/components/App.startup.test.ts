@@ -1,5 +1,5 @@
 import { mount, flushPromises } from '@vue/test-utils'
-import { reactive, ref } from 'vue'
+import { defineComponent, nextTick, reactive, ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   GUIDED_ONBOARDING_RESUME_REQUESTED_EVENT,
@@ -7,6 +7,7 @@ import {
 } from '@/lib/onboardingResume'
 
 const DEV_WELCOME_OVERRIDE_KEY = '__deepchat_dev_force_welcome'
+let mountedWrappers: Array<{ unmount: () => void }> = []
 
 const mountApp = async (options?: {
   initComplete?: boolean
@@ -23,6 +24,9 @@ const mountApp = async (options?: {
     | 'skills'
     | 'plugins'
     | null
+  windowFollowerMode?: 'normal' | 'following' | 'fixed' | 'detached'
+  windowFollowerContentOffsetX?: number
+  windowFollowerCollapsed?: boolean
 }) => {
   vi.resetModules()
 
@@ -263,6 +267,47 @@ const mountApp = async (options?: {
   const modelStore = {
     initialize: vi.fn().mockResolvedValue(undefined)
   }
+  const windowFollowerStore = reactive({
+    state: {
+      mode: options?.windowFollowerMode ?? 'normal',
+      collapsed: options?.windowFollowerCollapsed ?? false,
+      panelWidth: 360,
+      automaticAdhesionAvailable: options?.windowFollowerMode !== 'normal',
+      snapshot: null,
+      permissions: {
+        platform: 'macos',
+        accessibility: 'granted',
+        screenRecording: 'granted',
+        checkedAt: 1_000
+      },
+      panelBounds: null,
+      displayBounds: [],
+      placement: null,
+      contentOffsetX: options?.windowFollowerContentOffsetX ?? 0,
+      lastError: null,
+      updatedAt: 1_000
+    },
+    settings: {
+      automaticAdhesion: true,
+      currentApp: null,
+      excludedApps: []
+    },
+    commandError: null,
+    initialize: vi.fn().mockResolvedValue(undefined),
+    dispose: vi.fn(),
+    setPointerInteractive: vi.fn().mockResolvedValue(undefined),
+    setMode: vi.fn().mockResolvedValue(undefined),
+    setCollapsed: vi.fn().mockResolvedValue(undefined),
+    resetWidth: vi.fn().mockResolvedValue(undefined),
+    setWidth: vi.fn().mockResolvedValue(undefined),
+    setAutomaticAdhesion: vi.fn().mockResolvedValue(undefined),
+    openPermissionSettings: vi.fn().mockResolvedValue(undefined),
+    loadSettings: vi.fn().mockResolvedValue(undefined),
+    excludeCurrentApp: vi.fn().mockResolvedValue(undefined),
+    removeExcludedApp: vi.fn().mockResolvedValue(undefined),
+    hide: vi.fn().mockResolvedValue(true),
+    quit: vi.fn().mockResolvedValue(true)
+  })
   const toast = vi.fn(() => ({ dismiss: vi.fn() }))
   const ipcOn = vi.fn(() => vi.fn())
   const ipcRemoveAllListeners = vi.fn()
@@ -402,6 +447,16 @@ const mountApp = async (options?: {
   vi.doMock('@/stores/modelStore', () => ({
     useModelStore: () => modelStore
   }))
+  vi.doMock('@/stores/windowFollower', () => ({
+    useWindowFollowerStore: () => windowFollowerStore
+  }))
+  vi.doMock('@/stores/windowFollowerDebug', () => ({
+    useWindowFollowerDebugStore: () => ({
+      isOpen: false,
+      open: vi.fn(),
+      close: vi.fn()
+    })
+  }))
   vi.doMock('@/lib/storeInitializer', () => ({
     initAppStores: vi.fn(),
     useMcpInstallDeeplinkHandler: () => ({
@@ -416,18 +471,47 @@ const mountApp = async (options?: {
   }))
   vi.doMock('@/composables/useDeviceVersion', () => ({
     useDeviceVersion: () => ({
-      isWinMacOS: false
+      isWinMacOS: false,
+      isMacOS: ref(false)
     })
   }))
 
   const App = (await import('@/App.vue')).default
 
-  mount(App, {
+  const wrapper = mount(App, {
     global: {
       stubs: {
-        RouterView: true,
-        AppBar: true,
-        WindowSideBar: true,
+        RouterView: defineComponent({
+          name: 'RouterView',
+          template: '<div data-testid="router-content" />'
+        }),
+        AppBar: defineComponent({
+          name: 'AppBar',
+          template: '<div data-testid="desktop-app-bar" />'
+        }),
+        WindowSideBar: defineComponent({
+          name: 'WindowSideBar',
+          template: '<div data-testid="desktop-window-sidebar" />'
+        }),
+        WindowFollowerToolbar: {
+          template:
+            '<button data-testid="window-follower-toolbar-stub" @click="$emit(\'open-settings\')" />',
+          emits: ['open-settings']
+        },
+        WindowFollowerCollapsedBubble: {
+          template: '<div data-testid="window-follower-bubble-stub" />'
+        },
+        WindowFollowerResizeHandle: {
+          template: '<div data-testid="window-follower-resize-stub" />'
+        },
+        WindowFollowerSettingsPanel: {
+          template:
+            '<button data-testid="window-follower-settings-stub" @click="$emit(\'close\')" />',
+          emits: ['close']
+        },
+        WindowFollowerDesktopNotice: {
+          template: '<div data-testid="window-follower-desktop-notice-stub" />'
+        },
         UpdateDialog: true,
         MessageDialog: true,
         McpSamplingDialog: true,
@@ -442,10 +526,12 @@ const mountApp = async (options?: {
       }
     }
   })
+  mountedWrappers.push(wrapper)
 
   await flushPromises()
 
   return {
+    wrapper,
     route,
     router,
     configPresenter,
@@ -457,16 +543,130 @@ const mountApp = async (options?: {
     draftStore,
     sessionStore,
     ipcOn,
-    spotlightStore
+    spotlightStore,
+    windowFollowerStore
   }
 }
 
 afterEach(() => {
+  for (const wrapper of mountedWrappers) {
+    wrapper.unmount()
+  }
+  mountedWrappers = []
   window.sessionStorage.removeItem(DEV_WELCOME_OVERRIDE_KEY)
   window.sessionStorage.removeItem(GUIDED_ONBOARDING_RESUME_STORAGE_KEY)
 })
 
 describe('App startup welcome flow', () => {
+  it('initializes the WindowFollower surface and maps reserve pointer hit-testing', async () => {
+    const { wrapper, windowFollowerStore } = await mountApp({
+      initComplete: true,
+      routeName: 'chat',
+      onboardingStatus: 'completed',
+      windowFollowerMode: 'following',
+      windowFollowerContentOffsetX: 44
+    })
+
+    const surface = wrapper.get('[data-testid="window-follower-surface"]')
+    expect(windowFollowerStore.initialize).toHaveBeenCalledOnce()
+    expect(surface.attributes('style')).toContain('width: calc(100vw - 44px)')
+    expect(surface.attributes('style')).toContain('transform: translateX(44px)')
+
+    window.dispatchEvent(new MouseEvent('mousemove', { clientX: 20 }))
+    window.dispatchEvent(new MouseEvent('mousemove', { clientX: 60 }))
+    await flushPromises()
+
+    expect(windowFollowerStore.setPointerInteractive).toHaveBeenNthCalledWith(1, false)
+    expect(windowFollowerStore.setPointerInteractive).toHaveBeenNthCalledWith(2, true)
+
+    wrapper.unmount()
+    expect(windowFollowerStore.dispose).toHaveBeenCalledOnce()
+  })
+
+  it('does not render panel controls in the normal desktop window', async () => {
+    const { wrapper } = await mountApp({
+      initComplete: true,
+      routeName: 'chat',
+      onboardingStatus: 'completed',
+      windowFollowerMode: 'normal'
+    })
+
+    expect(wrapper.get('[data-testid="window-follower-toolbar-stub"]').isVisible()).toBe(false)
+    expect(wrapper.get('[data-testid="window-follower-resize-stub"]').isVisible()).toBe(false)
+    expect(wrapper.find('[data-testid="window-follower-bubble-stub"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="window-follower-desktop-notice-stub"]').isVisible()).toBe(
+      true
+    )
+  })
+
+  it('shows desktop chrome only in normal mode and keeps the same routed DOM node', async () => {
+    const { wrapper, windowFollowerStore } = await mountApp({
+      initComplete: true,
+      routeName: 'chat',
+      onboardingStatus: 'completed',
+      windowFollowerMode: 'normal'
+    })
+    const routedNode = wrapper.get('[data-testid="router-content"]').element
+
+    expect(wrapper.get('[data-testid="desktop-app-bar"]').isVisible()).toBe(true)
+    expect(wrapper.get('[data-testid="desktop-window-sidebar"]').isVisible()).toBe(true)
+
+    windowFollowerStore.state.mode = 'following'
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="desktop-app-bar"]').isVisible()).toBe(false)
+    expect(wrapper.get('[data-testid="desktop-window-sidebar"]').isVisible()).toBe(false)
+    expect(wrapper.get('[data-testid="window-follower-toolbar-stub"]').isVisible()).toBe(true)
+    expect(wrapper.get('[data-testid="window-follower-desktop-notice-stub"]').isVisible()).toBe(
+      false
+    )
+    expect(wrapper.get('[data-testid="router-content"]').element).toBe(routedNode)
+  })
+
+  it('renders toolbar and resize controls over the expanded panel surface', async () => {
+    const { wrapper } = await mountApp({
+      initComplete: true,
+      routeName: 'chat',
+      onboardingStatus: 'completed',
+      windowFollowerMode: 'following'
+    })
+
+    expect(wrapper.get('[data-testid="window-follower-toolbar-stub"]')).toBeTruthy()
+    expect(wrapper.get('[data-testid="window-follower-resize-stub"]')).toBeTruthy()
+    expect(wrapper.find('[data-testid="window-follower-bubble-stub"]').exists()).toBe(false)
+  })
+
+  it('keeps the chat surface mounted while the collapsed native window shows only the bubble', async () => {
+    const { wrapper } = await mountApp({
+      initComplete: true,
+      routeName: 'chat',
+      onboardingStatus: 'completed',
+      windowFollowerMode: 'fixed',
+      windowFollowerCollapsed: true
+    })
+
+    expect(wrapper.get('[data-testid="app-root"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="window-follower-surface"]').isVisible()).toBe(false)
+    expect(wrapper.get('[data-testid="window-follower-bubble-stub"]')).toBeTruthy()
+    expect(wrapper.get('[data-testid="window-follower-toolbar-stub"]').isVisible()).toBe(false)
+  })
+
+  it('opens and closes settings inside the same expanded panel surface', async () => {
+    const { wrapper } = await mountApp({
+      initComplete: true,
+      routeName: 'chat',
+      onboardingStatus: 'completed',
+      windowFollowerMode: 'following'
+    })
+
+    await wrapper.get('[data-testid="window-follower-toolbar-stub"]').trigger('click')
+    expect(wrapper.get('[data-testid="window-follower-settings-stub"]')).toBeTruthy()
+    expect(wrapper.get('[data-testid="app-root"]').exists()).toBe(true)
+
+    await wrapper.get('[data-testid="window-follower-settings-stub"]').trigger('click')
+    expect(wrapper.get('[data-testid="window-follower-settings-stub"]').isVisible()).toBe(false)
+  })
+
   it('routes to welcome when init is incomplete', async () => {
     const { router, configPresenter, onboardingClient } = await mountApp({
       initComplete: false,

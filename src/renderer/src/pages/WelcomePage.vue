@@ -4,7 +4,7 @@
       v-if="showGuideCoachmark"
       data-testid="welcome-guide-coachmark"
       :data-guide-target="coachmarkTargetSurface"
-      class="pointer-events-none fixed inset-0 z-70"
+      class="window-follower-onboarding-viewport pointer-events-none fixed inset-0 z-70"
     >
       <div
         data-testid="welcome-guide-blocker"
@@ -26,7 +26,7 @@
         data-testid="welcome-guide-panel"
         role="dialog"
         aria-modal="true"
-        class="welcome-guide-coachmark pointer-events-auto absolute rounded-2xl border border-border/80 bg-background/95 p-4 shadow-2xl backdrop-blur"
+        class="welcome-guide-coachmark window-follower-guide-compact pointer-events-auto absolute rounded-2xl border border-border/80 bg-background/95 p-4 shadow-2xl backdrop-blur"
         :style="coachmarkPanelStyle"
       >
         <div class="flex items-center justify-between gap-3">
@@ -119,17 +119,21 @@
       </div>
     </div>
 
-    <div class="flex-1 flex flex-col items-center justify-center px-6">
+    <div
+      class="window-follower-welcome-content min-h-0 flex-1 flex flex-col items-center justify-center overflow-y-auto px-6"
+    >
       <!-- Logo -->
-      <div class="mb-5">
+      <div class="window-follower-welcome-logo mb-5">
         <img src="@/assets/logo-dark.png" class="w-16 h-16" loading="lazy" />
       </div>
 
       <!-- Heading -->
-      <h1 class="text-3xl font-semibold text-foreground mb-2">
+      <h1 class="window-follower-welcome-title text-3xl font-semibold text-foreground mb-2">
         {{ t('welcome.page.title') }}
       </h1>
-      <p class="text-sm text-muted-foreground text-center max-w-md mb-10">
+      <p
+        class="window-follower-welcome-description text-sm text-muted-foreground text-center max-w-md mb-10"
+      >
         {{ t('welcome.page.description') }}
       </p>
 
@@ -137,7 +141,7 @@
         ref="guideCardRef"
         v-if="onboardingState"
         data-testid="welcome-guide-card"
-        class="w-full max-w-sm mb-6 rounded-2xl border border-border/70 bg-card/50 px-4 py-4 shadow-sm"
+        class="window-follower-guide-compact w-full max-w-sm mb-6 rounded-2xl border border-border/70 bg-card/50 px-4 py-4 shadow-sm"
       >
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0">
@@ -162,7 +166,7 @@
           <span>{{ completedRequiredSteps }}/{{ requiredGuideSteps.length }}</span>
         </div>
 
-        <div class="mt-3 grid grid-cols-3 gap-2">
+        <div class="window-follower-guide-steps mt-3 grid grid-cols-3 gap-2">
           <div
             v-for="step in requiredGuideSteps"
             :key="step.id"
@@ -202,20 +206,24 @@
       <div
         ref="providerGridRef"
         data-testid="welcome-provider-grid"
-        class="grid grid-cols-3 gap-2 w-full max-w-sm mb-4"
+        class="window-follower-provider-compact grid grid-cols-3 gap-2 w-full max-w-sm mb-4"
       >
         <button
           v-for="provider in providers"
           :key="provider.id"
-          class="flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-card/40 px-3 py-4 hover:bg-accent/50 hover:border-border transition-all duration-150"
+          class="window-follower-provider-button min-w-0 flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-card/40 px-3 py-4 hover:bg-accent/50 hover:border-border transition-all duration-150"
           @click="onAddProvider"
         >
           <ModelIcon :model-id="provider.id" custom-class="w-6 h-6" :is-dark="themeStore.isDark" />
-          <span class="text-xs text-foreground/80">{{ t(provider.nameKey) }}</span>
+          <span class="min-w-0 max-w-full truncate text-xs text-foreground/80">{{
+            t(provider.nameKey)
+          }}</span>
         </button>
       </div>
 
-      <div class="mb-12 flex flex-wrap items-center justify-center gap-3">
+      <div
+        class="window-follower-welcome-provider-actions mb-12 flex flex-wrap items-center justify-center gap-3"
+      >
         <button
           class="text-xs text-muted-foreground hover:text-foreground transition-colors"
           @click="onAddProvider"
@@ -394,6 +402,7 @@ const {
   cutoutPathD: coachmarkCutoutPathD
 } = useOnBoarding(coachmarkTargetEl, {
   visible: showGuideCoachmark,
+  containerEl: rootRef,
   radius: 28
 })
 
@@ -648,6 +657,48 @@ onMounted(() => {
 .welcome-guide-coachmark,
 .welcome-guide-coachmark * {
   -webkit-app-region: no-drag;
+}
+
+:global(html[data-window-follower-surface='panel'] .window-follower-welcome-content) {
+  justify-content: flex-start;
+  padding: 48px 12px 16px;
+}
+
+:global(html[data-window-follower-surface='panel'] .window-follower-welcome-logo) {
+  display: none;
+}
+
+:global(html[data-window-follower-surface='panel'] .window-follower-welcome-title) {
+  margin-bottom: 4px;
+  font-size: 20px;
+}
+
+:global(html[data-window-follower-surface='panel'] .window-follower-welcome-description) {
+  margin-bottom: 16px;
+}
+
+:global(html[data-window-follower-surface='panel'] .window-follower-guide-compact) {
+  max-width: calc(100vw - var(--window-follower-content-offset-x, 0px) - 24px);
+  margin-bottom: 12px;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+:global(html[data-window-follower-surface='panel'] .window-follower-guide-steps),
+:global(html[data-window-follower-surface='panel'] .window-follower-provider-compact) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+:global(html[data-window-follower-surface='panel'] .window-follower-provider-button) {
+  min-height: 40px;
+  flex-direction: row;
+  justify-content: flex-start;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+:global(html[data-window-follower-surface='panel'] .window-follower-welcome-provider-actions) {
+  margin-bottom: 20px;
 }
 
 button,

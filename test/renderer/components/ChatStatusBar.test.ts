@@ -771,6 +771,23 @@ const commitNumericInput = async (
 }
 
 describe('ChatStatusBar model and session panels', () => {
+  it('keeps model, tools and permission controls in a compact horizontal scroller', async () => {
+    const { wrapper } = await setup({
+      agentId: 'deepchat',
+      hasActiveSession: false
+    })
+
+    expect(wrapper.get('[data-testid="chat-status-bar"]').classes()).toContain(
+      'window-follower-compact'
+    )
+    expect(wrapper.get('[data-testid="chat-status-scroll"]').classes()).toContain(
+      'window-follower-status-scroll'
+    )
+    expect(wrapper.get('[data-testid="app-model-switcher"]')).toBeTruthy()
+    expect(wrapper.get('.mcp-indicator-stub')).toBeTruthy()
+    expect(wrapper.text()).toContain('chat.permissionMode.fullAccess')
+  })
+
   it(
     'passes system prompt section to the unified session panel in deepchat and hides it in ACP',
     async () => {

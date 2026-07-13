@@ -1,5 +1,21 @@
 import type { z } from 'zod'
 import type { RouteContract } from './common'
+import {
+  windowFollowerExcludeCurrentAppRoute,
+  windowFollowerGetStateRoute,
+  windowFollowerGetSettingsRoute,
+  windowFollowerHideRoute,
+  windowFollowerOpenPermissionSettingsRoute,
+  windowFollowerQuitRoute,
+  windowFollowerRefreshRoute,
+  windowFollowerRemoveExcludedAppRoute,
+  windowFollowerResetWidthRoute,
+  windowFollowerSetAutomaticAdhesionRoute,
+  windowFollowerSetCollapsedRoute,
+  windowFollowerSetModeRoute,
+  windowFollowerSetPointerInteractiveRoute,
+  windowFollowerSetWidthRoute
+} from './routes/windowFollower.routes'
 import { acpTerminalInputRoute, acpTerminalKillRoute } from './routes/acp-terminal.routes'
 import {
   browserAttachCurrentWindowRoute,
@@ -532,6 +548,7 @@ export * from './routes/tab.routes'
 export * from './routes/tools.routes'
 export * from './routes/upgrade.routes'
 export * from './routes/window.routes'
+export * from './routes/windowFollower.routes'
 export * from './routes/workspace.routes'
 
 // 路由目录按块拆分并各自导出：单个巨型对象的 `typeof` 在声明输出(.d.ts)时会超过
@@ -995,7 +1012,21 @@ const DEEPCHAT_ROUTE_CATALOG_PART_5 = {
   [dialogRespondRoute.name]: dialogRespondRoute,
   [dialogErrorRoute.name]: dialogErrorRoute,
   [toolsListDefinitionsRoute.name]: toolsListDefinitionsRoute,
-  [systemOpenSettingsRoute.name]: systemOpenSettingsRoute
+  [systemOpenSettingsRoute.name]: systemOpenSettingsRoute,
+  [windowFollowerGetStateRoute.name]: windowFollowerGetStateRoute,
+  [windowFollowerRefreshRoute.name]: windowFollowerRefreshRoute,
+  [windowFollowerSetModeRoute.name]: windowFollowerSetModeRoute,
+  [windowFollowerSetCollapsedRoute.name]: windowFollowerSetCollapsedRoute,
+  [windowFollowerSetWidthRoute.name]: windowFollowerSetWidthRoute,
+  [windowFollowerSetPointerInteractiveRoute.name]: windowFollowerSetPointerInteractiveRoute,
+  [windowFollowerSetAutomaticAdhesionRoute.name]: windowFollowerSetAutomaticAdhesionRoute,
+  [windowFollowerOpenPermissionSettingsRoute.name]: windowFollowerOpenPermissionSettingsRoute,
+  [windowFollowerResetWidthRoute.name]: windowFollowerResetWidthRoute,
+  [windowFollowerGetSettingsRoute.name]: windowFollowerGetSettingsRoute,
+  [windowFollowerExcludeCurrentAppRoute.name]: windowFollowerExcludeCurrentAppRoute,
+  [windowFollowerRemoveExcludedAppRoute.name]: windowFollowerRemoveExcludedAppRoute,
+  [windowFollowerHideRoute.name]: windowFollowerHideRoute,
+  [windowFollowerQuitRoute.name]: windowFollowerQuitRoute
 } satisfies Record<string, RouteContract>
 
 export type DeepchatRouteCatalog = typeof DEEPCHAT_ROUTE_CATALOG_PART_1 &

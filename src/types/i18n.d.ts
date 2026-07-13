@@ -947,6 +947,73 @@ declare module 'vue-i18n' {
         second: string
       }
     }
+    windowFollower: {
+      toolbar: {
+        ariaLabel: string
+        expand: string
+        collapse: string
+        collapsePanel: string
+        pin: string
+        unpin: string
+        detach: string
+        reattach: string
+        resetWidth: string
+        settings: string
+        hide: string
+        quit: string
+      }
+      bubble: {
+        expand: string
+      }
+      resize: {
+        label: string
+        title: string
+      }
+      session: {
+        newChat: string
+        restoreWindow: string
+      }
+      history: {
+        title: string
+        close: string
+        loading: string
+        pinned: string
+        emptyTitle: string
+        emptyDescription: string
+      }
+      settings: {
+        ariaLabel: string
+        back: string
+        title: string
+        behaviorHeading: string
+        automaticAdhesion: string
+        panelWidth: string
+        permissionsHeading: string
+        accessibility: string
+        screenRecording: string
+        exclusionsHeading: string
+        excludeCurrentApp: string
+        restore: string
+        noExcludedApps: string
+        diagnosticsHeading: string
+        debugTitle: string
+        debugDescription: string
+        adhesion: {
+          paused: string
+          available: string
+          waitingPermissions: string
+        }
+        permission: {
+          granted: string
+          missing: string
+          notApplicable: string
+          checking: string
+        }
+      }
+      errors: {
+        commandFailed: string
+      }
+    }
     memory: {
       toolbar: string
       status: {

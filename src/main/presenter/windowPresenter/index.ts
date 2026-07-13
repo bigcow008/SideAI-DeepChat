@@ -36,9 +36,16 @@ import { FloatingChatWindow } from './FloatingChatWindow' // Floating chat windo
 import type { ProviderInstallPreview } from '@shared/providerDeeplink'
 import { StartupWorkloadCoordinator } from '../startupWorkloadCoordinator'
 import { openExternalUrl } from '@/lib/externalUrl'
-import { activateAppOnMac } from '@/lib/activateApp'
+import { activateAppOnMac, ensureRegularAppOnMac } from '@/lib/activateApp'
 import { DEEPCHAT_EVENT_CHANNEL } from '@shared/contracts/channels'
 import { createDeepchatEventEnvelope, publishDeepchatEvent } from '@/routes/publishDeepchatEvent'
+import {
+  DESKTOP_DEFAULT_HEIGHT,
+  DESKTOP_DEFAULT_WIDTH,
+  DESKTOP_MIN_HEIGHT,
+  DESKTOP_MIN_WIDTH,
+  normalizeDesktopWindowBounds
+} from './managedWindowBounds'
 
 type PendingSettingsMessage = {
   channel: string
@@ -59,6 +66,10 @@ export class WindowPresenter implements IWindowPresenter {
   private focusedWindowId: number | null = null
   // Main window ID
   private mainWindowId: number | null = null
+  private mainWindowStateManager: ReturnType<typeof windowStateManager> | null = null
+  private mainWindowStateTrackingSuspended = false
+  private mainWindowFollowerPresentationActive = false
+  private mainWindowDockRestoreTimer: ReturnType<typeof setTimeout> | null = null
   // Tracks close-to-hide separately from the native macOS Hide command.
   private mainWindowHiddenByClose = false
   private floatingChatWindow: FloatingChatWindow | null = null
@@ -156,6 +167,86 @@ export class WindowPresenter implements IWindowPresenter {
     }
     const allWindows = this.getAllWindows()
     return allWindows.length > 0 && !allWindows[0].isDestroyed() ? allWindows[0] : undefined
+  }
+
+  /** Returns the original DeepChat main window regardless of auxiliary-window focus. */
+  getPrimaryWindow(): BrowserWindow | undefined {
+    if (this.mainWindowId == null) return undefined
+    const window = BrowserWindow.fromId(this.mainWindowId)
+    return window && !window.isDestroyed() ? window : undefined
+  }
+
+  suspendPrimaryWindowStateTracking(): void {
+    if (!this.mainWindowStateManager || this.mainWindowStateTrackingSuspended) return
+    this.mainWindowStateManager.unmanage()
+    this.mainWindowStateTrackingSuspended = true
+  }
+
+  resumePrimaryWindowStateTracking(): void {
+    if (!this.mainWindowStateManager || !this.mainWindowStateTrackingSuspended) return
+    const window = this.getPrimaryWindow()
+    if (!window) return
+    this.mainWindowStateManager.manage(window)
+    this.mainWindowStateTrackingSuspended = false
+  }
+
+  enterPrimaryWindowFollowerPresentation(options: {
+    collapsed: boolean
+    hasTransparentReserve: boolean
+  }): void {
+    const window = this.getPrimaryWindow()
+    if (!window) return
+    const enteringPanelPresentation = !this.mainWindowFollowerPresentationActive
+    this.mainWindowFollowerPresentationActive = true
+
+    if (enteringPanelPresentation) {
+      window.setMinimumSize(36, 36)
+      window.setResizable(false)
+      window.setMinimizable(false)
+      window.setMaximizable(false)
+      window.setFullScreenable(false)
+      if (process.platform === 'darwin') {
+        window.setWindowButtonVisibility(false)
+        window.setVibrancy('under-window')
+      }
+      window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+      if (process.platform === 'darwin') {
+        ensureRegularAppOnMac()
+        this.mainWindowDockRestoreTimer = setTimeout(() => {
+          this.mainWindowDockRestoreTimer = null
+          if (this.mainWindowFollowerPresentationActive) ensureRegularAppOnMac()
+        }, 150)
+      }
+    }
+    window.setHasShadow(!options.collapsed && !options.hasTransparentReserve)
+  }
+
+  restorePrimaryWindowPresentation(): void {
+    this.mainWindowFollowerPresentationActive = false
+    if (this.mainWindowDockRestoreTimer) {
+      clearTimeout(this.mainWindowDockRestoreTimer)
+      this.mainWindowDockRestoreTimer = null
+    }
+    const window = this.getPrimaryWindow()
+    if (!window) return
+
+    window.setMinimumSize(DESKTOP_MIN_WIDTH, DESKTOP_MIN_HEIGHT)
+    window.setResizable(true)
+    window.setMinimizable(true)
+    window.setMaximizable(true)
+    window.setFullScreenable(true)
+    if (process.platform === 'darwin') {
+      window.setWindowButtonVisibility(true)
+      window.setVibrancy('under-window')
+    }
+    window.setHasShadow(true)
+    window.setVisibleOnAllWorkspaces(false)
+
+    const contentProtectionEnabled = this.configPresenter.getContentProtectionEnabled()
+    window.setSkipTaskbar(contentProtectionEnabled)
+    if (process.platform === 'darwin') {
+      window.setHiddenInMissionControl(contentProtectionEnabled)
+    }
   }
 
   /**
@@ -647,13 +738,16 @@ export class WindowPresenter implements IWindowPresenter {
     const iconFile = nativeImage.createFromPath(process.platform === 'win32' ? iconWin : icon)
 
     // Standalone browser shell has been removed. All managed windows now use chat shell sizing.
-    const defaultWidth = 800
-    const defaultHeight = 620
-
     // 使用窗口状态管理器恢复位置和尺寸
     const managedWindowState = windowStateManager({
-      defaultWidth,
-      defaultHeight
+      defaultWidth: DESKTOP_DEFAULT_WIDTH,
+      defaultHeight: DESKTOP_DEFAULT_HEIGHT
+    })
+    const managedDesktopBounds = normalizeDesktopWindowBounds({
+      x: managedWindowState.x,
+      y: managedWindowState.y,
+      width: managedWindowState.width,
+      height: managedWindowState.height
     })
 
     // 计算初始位置，确保窗口完全在屏幕范围内
@@ -661,24 +755,26 @@ export class WindowPresenter implements IWindowPresenter {
       options?.x !== undefined
         ? options.x
         : this.validateWindowPosition(
-            managedWindowState.x,
-            managedWindowState.width,
-            managedWindowState.y,
-            managedWindowState.height
+            managedDesktopBounds.x,
+            managedDesktopBounds.width,
+            managedDesktopBounds.y,
+            managedDesktopBounds.height
           ).x
     let initialY =
       options?.y !== undefined
         ? options?.y
         : this.validateWindowPosition(
-            managedWindowState.x,
-            managedWindowState.width,
-            managedWindowState.y,
-            managedWindowState.height
+            managedDesktopBounds.x,
+            managedDesktopBounds.width,
+            managedDesktopBounds.y,
+            managedDesktopBounds.height
           ).y
 
     const appWindow = new BrowserWindow({
-      width: managedWindowState.width,
-      height: managedWindowState.height,
+      width: managedDesktopBounds.width,
+      height: managedDesktopBounds.height,
+      minWidth: DESKTOP_MIN_WIDTH,
+      minHeight: DESKTOP_MIN_HEIGHT,
       x: initialX,
       y: initialY,
       show: false, // 先隐藏窗口，等待 ready-to-show 以避免白屏
@@ -722,11 +818,6 @@ export class WindowPresenter implements IWindowPresenter {
     // 应用内容保护设置
     const contentProtectionEnabled = this.configPresenter.getContentProtectionEnabled()
     this.updateContentProtection(appWindow, contentProtectionEnabled)
-
-    // 开发模式下自动打开 DevTools
-    if (is.dev) {
-      appWindow.webContents.openDevTools()
-    }
 
     // --- 窗口事件监听 ---
 
@@ -926,6 +1017,13 @@ export class WindowPresenter implements IWindowPresenter {
       this.windows.delete(windowIdBeingClosed) // 从 Map 中移除
       if (windowIdBeingClosed === this.mainWindowId) {
         this.mainWindowHiddenByClose = false
+        this.mainWindowStateManager = null
+        this.mainWindowStateTrackingSuspended = false
+        this.mainWindowFollowerPresentationActive = false
+        if (this.mainWindowDockRestoreTimer) {
+          clearTimeout(this.mainWindowDockRestoreTimer)
+          this.mainWindowDockRestoreTimer = null
+        }
       }
       managedWindowState.unmanage() // 停止管理窗口状态
       eventBus.sendToMain(WINDOW_EVENTS.WINDOW_CLOSED, windowIdBeingClosed)
@@ -962,16 +1060,11 @@ export class WindowPresenter implements IWindowPresenter {
       })
     }
 
-    // DevTools 不再自动打开，需要手动通过菜单或快捷键打开
-    // 开发环境直接自动开启，方便排查
-    if (is.dev) {
-      appWindow.webContents.openDevTools({ mode: 'detach' })
-    }
-
     logger.info(`Window ${windowId} created successfully.`)
 
     if (this.mainWindowId == null) {
       this.mainWindowId = windowId // 如果这是第一个窗口，设置为主窗口 ID
+      this.mainWindowStateManager = managedWindowState
     }
     return windowId // 返回新创建窗口的 ID
   }
@@ -1428,11 +1521,6 @@ export class WindowPresenter implements IWindowPresenter {
     console.info(
       `[Startup][Settings][Main] loadURL end windowId=${windowId} elapsed=${Date.now() - settingsStartupStart}ms`
     )
-
-    // Open DevTools in development mode
-    if (is.dev) {
-      settingsWindow.webContents.openDevTools({ mode: 'detach' })
-    }
 
     logger.info(`Settings window ${windowId} created successfully.`)
     return windowId

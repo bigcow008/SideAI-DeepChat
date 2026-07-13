@@ -1,7 +1,8 @@
 <template>
   <div
     v-bind="attrs"
-    class="dc-blur-panel sticky top-0 z-[var(--dc-z-sticky)] flex h-12 items-center justify-between bg-background/60 px-4 window-drag-region transition-[padding] duration-[var(--dc-motion-default)] ease-[var(--dc-ease-out-express)]"
+    data-testid="chat-topbar"
+    class="window-follower-compact dc-blur-panel sticky top-0 z-[var(--dc-z-sticky)] flex h-12 items-center justify-between bg-background/60 px-4 window-drag-region transition-[padding] duration-[var(--dc-motion-default)] ease-[var(--dc-ease-out-express)]"
     :class="{ 'pl-12': showCollapsedNewChatSpacer }"
   >
     <div class="flex min-w-0 flex-1 items-center gap-2">
@@ -35,17 +36,26 @@
         <Icon icon="lucide:corner-up-left" class="h-3.5 w-3.5" />
         <span>{{ t('chat.topbar.backToParent') }}</span>
       </Button>
-      <div v-if="project" class="flex items-center gap-1.5 text-muted-foreground">
+      <div
+        v-if="project"
+        data-testid="chat-topbar-project-copy"
+        class="window-follower-topbar-copy flex items-center gap-1.5 text-muted-foreground"
+      >
         <Icon icon="lucide:folder" class="w-3.5 h-3.5 shrink-0" />
         <span class="text-xs truncate">{{ projectName }}</span>
         <Icon icon="lucide:chevron-right" class="w-3 h-3 shrink-0" />
       </div>
-      <div v-if="isReadOnly" class="min-w-0 flex-1">
+      <div
+        v-if="isReadOnly"
+        data-testid="chat-topbar-title-copy"
+        class="window-follower-topbar-copy min-w-0 flex-1"
+      >
         <h2 class="text-sm font-medium truncate">{{ currentTitle }}</h2>
       </div>
       <div
         v-else
-        class="title-inline-shell no-drag min-w-0 flex-1"
+        data-testid="chat-topbar-title-copy"
+        class="window-follower-topbar-copy title-inline-shell no-drag min-w-0 flex-1"
         :class="{ 'title-inline-shell--editing': isRenaming }"
       >
         <button
@@ -108,6 +118,18 @@
       <Button
         variant="ghost"
         size="icon"
+        data-testid="window-follower-debug-button"
+        class="window-follower-topbar-debug h-7 w-7 text-muted-foreground hover:text-foreground"
+        :title="t('settings.deepchatAgents.debug.entry')"
+        :aria-label="t('settings.deepchatAgents.debug.entry')"
+        @click="windowFollowerDebugStore.open"
+      >
+        <Icon icon="lucide:bug" class="h-4 w-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        data-testid="chat-topbar-workspace-button"
         class="h-7 w-7 text-muted-foreground hover:text-foreground"
         :title="t('chat.workspace.title')"
         @click="sidepanelStore.toggleWorkspace(props.sessionId)"
@@ -120,6 +142,7 @@
           <Button
             variant="ghost"
             size="icon"
+            data-testid="chat-topbar-share-button"
             class="h-7 w-7 text-muted-foreground hover:text-foreground"
             :title="t('chat.topbar.share')"
           >
@@ -152,6 +175,7 @@
           <Button
             variant="ghost"
             size="icon"
+            data-testid="chat-topbar-more-button"
             class="h-7 w-7 text-muted-foreground hover:text-foreground"
             :title="t('chat.topbar.more')"
           >
@@ -253,6 +277,7 @@ import { useSessionStore } from '@/stores/ui/session'
 import { useSidepanelStore } from '@/stores/ui/sidepanel'
 import { useSidebarStore } from '@/stores/ui/sidebar'
 import { useToast } from '@/components/use-toast'
+import { useWindowFollowerDebugStore } from '@/stores/windowFollowerDebug'
 
 defineOptions({
   inheritAttrs: false
@@ -272,6 +297,7 @@ const agentStore = useAgentStore()
 const sidepanelStore = useSidepanelStore()
 const sidebarStore = useSidebarStore()
 const { toast } = useToast()
+const windowFollowerDebugStore = useWindowFollowerDebugStore()
 
 const isRenaming = ref(false)
 const clearDialogOpen = ref(false)
@@ -521,6 +547,14 @@ const handleBackToParent = async () => {
 </script>
 
 <style scoped>
+:global(html[data-window-follower-surface='panel'] .window-follower-topbar-copy) {
+  display: none;
+}
+
+:global(html[data-window-follower-surface='panel'] .window-follower-topbar-debug) {
+  display: none;
+}
+
 .collapsed-new-chat-button-enter-active,
 .collapsed-new-chat-button-leave-active {
   transition:

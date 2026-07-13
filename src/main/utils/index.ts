@@ -1,6 +1,7 @@
 import { presenter } from '@/presenter'
 
 export function handleShowHiddenWindow(mustShow: boolean) {
+  presenter.windowFollowerPresenter.returnToNormal(true)
   const allWindows = presenter.windowPresenter.getAllWindows()
   if (allWindows.length === 0) {
     presenter.windowPresenter.createAppWindow({

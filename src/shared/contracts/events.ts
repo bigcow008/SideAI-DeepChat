@@ -119,6 +119,7 @@ import {
   upgradeWillRestartEvent
 } from './events/upgrade.events'
 import { windowStateChangedEvent } from './events/window.events'
+import { windowFollowerStateChangedEvent } from './events/windowFollower.events'
 import {
   workspaceInvalidatedEvent,
   workspaceWatchStatusChangedEvent
@@ -148,9 +149,11 @@ export * from './events/skillSync.events'
 export * from './events/sync.events'
 export * from './events/upgrade.events'
 export * from './events/window.events'
+export * from './events/windowFollower.events'
 export * from './events/workspace.events'
 
 export const DEEPCHAT_EVENT_CATALOG = {
+  [windowFollowerStateChangedEvent.name]: windowFollowerStateChangedEvent,
   [windowStateChangedEvent.name]: windowStateChangedEvent,
   [workspaceInvalidatedEvent.name]: workspaceInvalidatedEvent,
   [workspaceWatchStatusChangedEvent.name]: workspaceWatchStatusChangedEvent,

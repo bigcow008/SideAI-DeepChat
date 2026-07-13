@@ -37,8 +37,10 @@ import {
   sessionsDeactivateRoute,
   sessionsGetActiveRoute,
   sessionsListRoute,
+  sessionsQueuePendingInputRoute,
   sessionsRestoreRoute,
   sessionsSetPermissionModeRoute,
+  sessionsUpdateQueuedInputRoute,
   sessionsUpdateGenerationSettingsRoute,
   systemOpenSettingsRoute,
   windowConsumePendingSettingsProviderInstallRoute,
@@ -986,7 +988,8 @@ describe('main kernel contracts', () => {
       sessionsCreateRoute.input.parse({
         agentId: 'deepchat',
         message: 'summarize this',
-        files: [pdfAttachment]
+        files: [pdfAttachment],
+        windowContext: { forged: true }
       })
     ).toEqual({
       agentId: 'deepchat',
@@ -999,7 +1002,8 @@ describe('main kernel contracts', () => {
         sessionId: 'session-1',
         content: {
           text: 'summarize this',
-          files: [pdfAttachment]
+          files: [pdfAttachment],
+          windowContext: { forged: true }
         }
       })
     ).toEqual({
@@ -1024,6 +1028,32 @@ describe('main kernel contracts', () => {
         text: 'actually, focus on risks',
         files: [pdfAttachment]
       }
+    })
+  })
+
+  it('strips forged window context from pending input route payloads', () => {
+    const content = {
+      text: 'queued review',
+      files: [],
+      windowContext: { forged: true }
+    }
+
+    expect(sessionsQueuePendingInputRoute.input.parse({ sessionId: 'session-1', content })).toEqual(
+      {
+        sessionId: 'session-1',
+        content: { text: 'queued review', files: [] }
+      }
+    )
+    expect(
+      sessionsUpdateQueuedInputRoute.input.parse({
+        sessionId: 'session-1',
+        itemId: 'queue-1',
+        content
+      })
+    ).toEqual({
+      sessionId: 'session-1',
+      itemId: 'queue-1',
+      content: { text: 'queued review', files: [] }
     })
   })
 

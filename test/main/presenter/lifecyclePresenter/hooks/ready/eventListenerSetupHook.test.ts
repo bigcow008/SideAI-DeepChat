@@ -17,6 +17,10 @@ const windowPresenterMock = vi.hoisted(() => ({
 const floatingButtonPresenterMock = vi.hoisted(() => ({
   setEnabled: vi.fn()
 }))
+const windowFollowerPresenterMock = vi.hoisted(() => ({
+  returnToNormal: vi.fn(),
+  start: vi.fn()
+}))
 const shortcutPresenterMock = vi.hoisted(() => ({
   registerShortcuts: vi.fn(),
   unregisterShortcuts: vi.fn()
@@ -48,6 +52,7 @@ vi.mock('@electron-toolkit/utils', () => ({
 vi.mock('@/presenter', () => ({
   presenter: {
     windowPresenter: windowPresenterMock,
+    windowFollowerPresenter: windowFollowerPresenterMock,
     floatingButtonPresenter: floatingButtonPresenterMock,
     shortcutPresenter: shortcutPresenterMock
   }
@@ -72,6 +77,8 @@ describe('eventListenerSetupHook', () => {
   it('creates a chat window when macOS activates the app with no existing windows', async () => {
     await eventListenerSetupHook.execute({} as never)
 
+    expect(windowFollowerPresenterMock.start).toHaveBeenCalledOnce()
+
     const activateHandler = appOnMock.mock.calls.find(
       ([eventName]) => eventName === 'activate'
     )?.[1]
@@ -79,6 +86,7 @@ describe('eventListenerSetupHook', () => {
 
     activateHandler()
 
+    expect(windowFollowerPresenterMock.returnToNormal).toHaveBeenCalledWith(true)
     expect(windowPresenterMock.createAppWindow).toHaveBeenCalledWith({ initialRoute: 'chat' })
   })
 
@@ -97,6 +105,18 @@ describe('eventListenerSetupHook', () => {
     expect(windowPresenterMock.restoreMainWindowHiddenByClose).toHaveBeenCalledOnce()
     expect(windowPresenterMock.getAllWindows).not.toHaveBeenCalled()
     expect(windowPresenterMock.createAppWindow).not.toHaveBeenCalled()
+  })
+
+  it('returns to the original large window before handling the global show shortcut', async () => {
+    await eventListenerSetupHook.execute({} as never)
+    const showHandler = eventBusMock.on.mock.calls.find(
+      ([eventName]) => eventName === 'tray:show-hidden-window'
+    )?.[1]
+
+    expect(showHandler).toBeTypeOf('function')
+    showHandler(true)
+
+    expect(windowFollowerPresenterMock.returnToNormal).toHaveBeenCalledWith(true)
   })
 
   it('does not reveal windows hidden by the native macOS Hide command', async () => {

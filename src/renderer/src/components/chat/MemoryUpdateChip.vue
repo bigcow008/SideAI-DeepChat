@@ -13,7 +13,10 @@
           }}</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" class="w-[min(92vw,34rem)] p-0">
+      <PopoverContent
+        align="start"
+        class="w-[min(92vw,34rem)] [--window-follower-portal-max-width:34rem] p-0"
+      >
         <div class="border-b px-3 py-2">
           <div class="flex items-center justify-between gap-3">
             <p class="text-sm font-medium">{{ t('chat.memory.chip.heading') }}</p>

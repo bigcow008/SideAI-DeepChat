@@ -140,4 +140,18 @@ describe('ChatSidePanel', () => {
       window.removeEventListener(WORKSPACE_EVENTS.INSERT_REFERENCE_REQUESTED, insertionListener)
     }
   })
+
+  it('exposes a stable overlay hook while preserving workspace and browser controls', async () => {
+    const { wrapper } = await setup({
+      open: true,
+      activeTab: 'workspace',
+      sessionId: 'session-1'
+    })
+
+    expect(wrapper.get('[data-testid="chat-side-panel-shell"]').classes()).toContain(
+      'window-follower-side-panel-overlay'
+    )
+    expect(wrapper.get('[data-testid="workspace-panel-stub"]')).toBeTruthy()
+    expect(wrapper.get('[data-testid="chat-side-panel-resize-handle"]')).toBeTruthy()
+  })
 })

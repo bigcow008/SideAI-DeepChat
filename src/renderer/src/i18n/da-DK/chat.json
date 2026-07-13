@@ -485,5 +485,72 @@
       "amendRetryable": "Ændringen mislykkedes. Den oprindelige hukommelse er gendannet, så prøv igen.",
       "amendRestoreFailed": "Ændringen mislykkedes, og den oprindelige hukommelse kunne ikke gendannes."
     }
+  },
+  "windowFollower": {
+    "toolbar": {
+      "ariaLabel": "Edge panel controls",
+      "expand": "Expand toolbar",
+      "collapse": "Collapse toolbar",
+      "collapsePanel": "Collapse to bubble",
+      "pin": "Pin panel",
+      "unpin": "Unpin panel",
+      "detach": "Detach panel",
+      "reattach": "Resume following",
+      "resetWidth": "Reset panel width",
+      "settings": "Panel settings",
+      "hide": "Hide panel",
+      "quit": "Quit DeepChat"
+    },
+    "bubble": {
+      "expand": "Expand edge panel"
+    },
+    "resize": {
+      "label": "Resize edge panel",
+      "title": "Drag to resize"
+    },
+    "session": {
+      "newChat": "New chat",
+      "restoreWindow": "Restore full window"
+    },
+    "history": {
+      "title": "Chat history",
+      "close": "Close chat history",
+      "loading": "Loading chats...",
+      "pinned": "Pinned",
+      "emptyTitle": "No chats yet",
+      "emptyDescription": "Your existing DeepChat sessions will appear here."
+    },
+    "settings": {
+      "ariaLabel": "Edge panel settings",
+      "back": "Back to edge panel",
+      "title": "Edge panel settings",
+      "behaviorHeading": "Following and width",
+      "automaticAdhesion": "Follow active window",
+      "panelWidth": "Panel width",
+      "permissionsHeading": "System permissions",
+      "accessibility": "Accessibility",
+      "screenRecording": "Screen recording",
+      "exclusionsHeading": "Excluded apps",
+      "excludeCurrentApp": "Exclude current app",
+      "restore": "Restore",
+      "noExcludedApps": "No excluded apps",
+      "diagnosticsHeading": "Diagnostics",
+      "debugTitle": "WindowFollower status",
+      "debugDescription": "Inspect target window, permissions, and geometry",
+      "adhesion": {
+        "paused": "Paused",
+        "available": "Available",
+        "waitingPermissions": "Waiting for system permissions"
+      },
+      "permission": {
+        "granted": "Granted",
+        "missing": "Permission required",
+        "notApplicable": "Not applicable on this platform",
+        "checking": "Checking"
+      }
+    },
+    "errors": {
+      "commandFailed": "Action failed: {message}"
+    }
   }
 }

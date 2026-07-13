@@ -1,12 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BrowserWindow } from 'electron'
-import { SETTINGS_EVENTS } from '@/events'
+import { is } from '@electron-toolkit/utils'
+import { CONFIG_EVENTS, SETTINGS_EVENTS, SHORTCUT_EVENTS, WINDOW_EVENTS } from '@/events'
+import { eventBus } from '@/eventbus'
 
 const activateAppOnMacMock = vi.hoisted(() => vi.fn())
+const ensureRegularAppOnMacMock = vi.hoisted(() => vi.fn())
 const originalBrowserWindowFromId = (BrowserWindow as any).fromId
 
 vi.mock('@/lib/activateApp', () => ({
-  activateAppOnMac: activateAppOnMacMock
+  activateAppOnMac: activateAppOnMacMock,
+  ensureRegularAppOnMac: ensureRegularAppOnMacMock
 }))
 
 vi.mock('electron-window-state', () => ({
@@ -37,7 +41,176 @@ describe('WindowPresenter', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     ;(BrowserWindow as any).fromId = originalBrowserWindowFromId
+    is.dev = false
+    eventBus.removeAllListeners(SHORTCUT_EVENTS.CREATE_NEW_WINDOW)
+    eventBus.removeAllListeners(SHORTCUT_EVENTS.GO_SETTINGS)
+    eventBus.removeAllListeners(CONFIG_EVENTS.CONTENT_PROTECTION_CHANGED)
+    eventBus.removeAllListeners(WINDOW_EVENTS.SET_APPLICATION_QUITTING)
+  })
+
+  it('clamps persisted compact bounds and sets a complete desktop minimum size', async () => {
+    const { WindowPresenter } = await import('@/presenter/windowPresenter')
+    const presenter = new WindowPresenter({
+      getContentProtectionEnabled: vi.fn(() => false)
+    } as any)
+
+    await presenter.createAppWindow({ x: 0, y: 0 })
+
+    expect(BrowserWindow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        width: 960,
+        height: 640,
+        minWidth: 960,
+        minHeight: 640
+      })
+    )
+  })
+
+  it('does not auto-open DevTools for a development main window', async () => {
+    is.dev = true
+    const { WindowPresenter } = await import('@/presenter/windowPresenter')
+    const presenter = new WindowPresenter({
+      getContentProtectionEnabled: vi.fn(() => false)
+    } as any)
+
+    await presenter.createAppWindow({ x: 0, y: 0 })
+
+    const window = vi.mocked(BrowserWindow).mock.results.at(-1)?.value as any
+    expect(window.webContents.openDevTools).not.toHaveBeenCalled()
+  })
+
+  it('does not auto-open DevTools for a development settings window', async () => {
+    is.dev = true
+    const { WindowPresenter } = await import('@/presenter/windowPresenter')
+    const presenter = new WindowPresenter({
+      getContentProtectionEnabled: vi.fn(() => false)
+    } as any)
+
+    await presenter.createSettingsWindow()
+
+    const window = vi.mocked(BrowserWindow).mock.results.at(-1)?.value as any
+    expect(window.webContents.openDevTools).not.toHaveBeenCalled()
+  })
+
+  it('returns the tracked main BrowserWindow even when another window is focused', async () => {
+    const { WindowPresenter } = await import('@/presenter/windowPresenter')
+    const presenter = new WindowPresenter({
+      getContentProtectionEnabled: vi.fn(() => false)
+    } as any)
+    const mainWindow = { id: 7, isDestroyed: vi.fn(() => false) }
+    ;(presenter as any).mainWindowId = 7
+    ;(BrowserWindow as any).fromId = vi.fn(() => mainWindow)
+
+    expect(presenter.getPrimaryWindow()).toBe(mainWindow)
+  })
+
+  it('suspends persisted state while the main window uses panel bounds', async () => {
+    const { WindowPresenter } = await import('@/presenter/windowPresenter')
+    const presenter = new WindowPresenter({
+      getContentProtectionEnabled: vi.fn(() => false)
+    } as any)
+    const mainWindow = { id: 7, isDestroyed: vi.fn(() => false) }
+    const stateManager = { manage: vi.fn(), unmanage: vi.fn() }
+    ;(presenter as any).mainWindowId = 7
+    ;(presenter as any).mainWindowStateManager = stateManager
+    ;(BrowserWindow as any).fromId = vi.fn(() => mainWindow)
+
+    presenter.suspendPrimaryWindowStateTracking()
+    presenter.resumePrimaryWindowStateTracking()
+
+    expect(stateManager.unmanage).toHaveBeenCalledOnce()
+    expect(stateManager.manage).toHaveBeenCalledWith(mainWindow)
+  })
+
+  it('applies compact native chrome to the same primary window in panel mode', async () => {
+    vi.useFakeTimers()
+    const { WindowPresenter } = await import('@/presenter/windowPresenter')
+    const presenter = new WindowPresenter({
+      getContentProtectionEnabled: vi.fn(() => false)
+    } as any)
+    const mainWindow = {
+      id: 7,
+      isDestroyed: vi.fn(() => false),
+      setMinimumSize: vi.fn(),
+      setResizable: vi.fn(),
+      setMinimizable: vi.fn(),
+      setMaximizable: vi.fn(),
+      setFullScreenable: vi.fn(),
+      setWindowButtonVisibility: vi.fn(),
+      setVibrancy: vi.fn(),
+      setHasShadow: vi.fn(),
+      setSkipTaskbar: vi.fn(),
+      setVisibleOnAllWorkspaces: vi.fn()
+    }
+    ;(presenter as any).mainWindowId = 7
+    ;(BrowserWindow as any).fromId = vi.fn(() => mainWindow)
+
+    presenter.enterPrimaryWindowFollowerPresentation({
+      collapsed: false,
+      hasTransparentReserve: true
+    })
+    presenter.enterPrimaryWindowFollowerPresentation({
+      collapsed: false,
+      hasTransparentReserve: true
+    })
+
+    expect(mainWindow.setMinimumSize).toHaveBeenCalledWith(36, 36)
+    expect(mainWindow.setResizable).toHaveBeenCalledWith(false)
+    expect(mainWindow.setMinimizable).toHaveBeenCalledWith(false)
+    expect(mainWindow.setMaximizable).toHaveBeenCalledWith(false)
+    expect(mainWindow.setFullScreenable).toHaveBeenCalledWith(false)
+    expect(ensureRegularAppOnMacMock).toHaveBeenCalledOnce()
+    expect(mainWindow.setWindowButtonVisibility).toHaveBeenCalledWith(false)
+    expect(mainWindow.setVibrancy).toHaveBeenCalledWith('under-window')
+    expect(mainWindow.setHasShadow).toHaveBeenCalledWith(false)
+    expect(mainWindow.setSkipTaskbar).not.toHaveBeenCalled()
+    expect(mainWindow.setVisibleOnAllWorkspaces).toHaveBeenCalledWith(true, {
+      visibleOnFullScreen: true
+    })
+    expect(mainWindow.setVisibleOnAllWorkspaces).toHaveBeenCalledOnce()
+    expect(mainWindow.setMinimumSize).toHaveBeenCalledOnce()
+    vi.advanceTimersByTime(150)
+    expect(ensureRegularAppOnMacMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('restores desktop native chrome after leaving panel mode', async () => {
+    const { WindowPresenter } = await import('@/presenter/windowPresenter')
+    const presenter = new WindowPresenter({
+      getContentProtectionEnabled: vi.fn(() => false)
+    } as any)
+    const mainWindow = {
+      id: 7,
+      isDestroyed: vi.fn(() => false),
+      setMinimumSize: vi.fn(),
+      setResizable: vi.fn(),
+      setMinimizable: vi.fn(),
+      setMaximizable: vi.fn(),
+      setFullScreenable: vi.fn(),
+      setWindowButtonVisibility: vi.fn(),
+      setVibrancy: vi.fn(),
+      setHasShadow: vi.fn(),
+      setSkipTaskbar: vi.fn(),
+      setHiddenInMissionControl: vi.fn(),
+      setVisibleOnAllWorkspaces: vi.fn()
+    }
+    ;(presenter as any).mainWindowId = 7
+    ;(BrowserWindow as any).fromId = vi.fn(() => mainWindow)
+
+    presenter.restorePrimaryWindowPresentation()
+
+    expect(mainWindow.setMinimumSize).toHaveBeenCalledWith(960, 640)
+    expect(mainWindow.setResizable).toHaveBeenCalledWith(true)
+    expect(mainWindow.setMinimizable).toHaveBeenCalledWith(true)
+    expect(mainWindow.setMaximizable).toHaveBeenCalledWith(true)
+    expect(mainWindow.setFullScreenable).toHaveBeenCalledWith(true)
+    expect(mainWindow.setWindowButtonVisibility).toHaveBeenCalledWith(true)
+    expect(mainWindow.setVibrancy).toHaveBeenCalledWith('under-window')
+    expect(mainWindow.setHasShadow).toHaveBeenCalledWith(true)
+    expect(mainWindow.setSkipTaskbar).toHaveBeenCalledWith(false)
+    expect(mainWindow.setHiddenInMissionControl).toHaveBeenCalledWith(false)
+    expect(mainWindow.setVisibleOnAllWorkspaces).toHaveBeenCalledWith(false)
   })
 
   it('queues settings events until the settings renderer reports ready', async () => {

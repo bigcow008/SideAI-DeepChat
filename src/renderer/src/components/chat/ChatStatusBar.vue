@@ -1,6 +1,12 @@
 <template>
-  <div :class="['w-full', props.maxWidthClass]">
-    <div class="flex w-full items-center justify-between px-1 py-2">
+  <div
+    data-testid="chat-status-bar"
+    :class="['window-follower-compact w-full', props.maxWidthClass]"
+  >
+    <div
+      data-testid="chat-status-scroll"
+      class="window-follower-status-scroll flex w-full items-center justify-between px-1 py-2"
+    >
       <div class="flex min-w-0 items-center gap-1">
         <template v-if="isAcpAgent">
           <div
@@ -116,7 +122,9 @@
             align="start"
             :class="[
               'z-72 max-w-[calc(100vw-1rem)] overflow-hidden p-0',
-              isModelSettingsExpanded ? 'w-[38rem]' : 'w-[20rem]'
+              isModelSettingsExpanded
+                ? 'w-[38rem] [--window-follower-portal-max-width:38rem]'
+                : 'w-[20rem] [--window-follower-portal-max-width:20rem]'
             ]"
           >
             <div class="flex max-h-[28rem]">
@@ -357,7 +365,7 @@
                             <TooltipContent
                               side="top"
                               align="start"
-                              class="z-[var(--dc-z-popover)] max-w-80 text-xs"
+                              class="z-[var(--dc-z-popover)] max-w-80 [--window-follower-portal-max-width:20rem] text-xs"
                             >
                               {{ t('chat.advancedSettings.topPDescription') }}
                             </TooltipContent>
@@ -873,7 +881,10 @@
             </Button>
           </PopoverTrigger>
 
-          <PopoverContent align="end" class="w-[18rem] p-0">
+          <PopoverContent
+            align="end"
+            class="w-[18rem] [--window-follower-portal-max-width:18rem] p-0"
+          >
             <div class="border-b px-3 py-3">
               <div class="text-sm font-medium">{{ t('chat.advancedSettings.title') }}</div>
             </div>
@@ -3051,3 +3062,23 @@ defineExpose({
   modelSettingsSelection
 })
 </script>
+
+<style scoped>
+:global(html[data-window-follower-surface='panel'] .window-follower-status-scroll) {
+  justify-content: flex-start;
+  gap: 0.25rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+:global(
+  html[data-window-follower-surface='panel'] .window-follower-status-scroll::-webkit-scrollbar
+) {
+  display: none;
+}
+
+:global(html[data-window-follower-surface='panel'] .window-follower-status-scroll > div) {
+  flex: 0 0 auto;
+}
+</style>

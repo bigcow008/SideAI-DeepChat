@@ -1,7 +1,14 @@
+import type { readFileSync as ReadFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { flushPromises } from '@vue/test-utils'
 import { GUIDED_ONBOARDING_RESUME_STORAGE_KEY } from '@/lib/onboardingResume'
+
+const readText = async (path: string) => {
+  const { readFileSync } = await vi.importActual<{ readFileSync: typeof ReadFileSync }>('node:fs')
+  return readFileSync(path, 'utf8')
+}
 
 afterEach(() => {
   vi.clearAllTimers()
@@ -10,6 +17,14 @@ afterEach(() => {
 })
 
 describe('WelcomePage', () => {
+  it('declares compact panel hooks for its guide and provider surfaces', async () => {
+    const source = await readText(resolve('src/renderer/src/pages/WelcomePage.vue'))
+
+    expect(source).toContain('window-follower-onboarding-viewport')
+    expect(source).toContain('window-follower-guide-compact')
+    expect(source).toContain('window-follower-provider-compact')
+  })
+
   it('marks init complete and navigates provider entry to provider settings', async () => {
     vi.resetModules()
     vi.useFakeTimers()

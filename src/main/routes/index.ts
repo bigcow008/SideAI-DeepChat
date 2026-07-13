@@ -404,6 +404,7 @@ import {
 import type { ChatMessageRecord } from '@shared/types/agent-interface'
 import { buildEffectiveTapeView } from '../presenter/agentRuntimePresenter/tapeEffectiveView'
 import { ChatService } from './chat/chatService'
+import { attachWindowContextToMessage, attachWindowContextToSession } from './chat/windowContext'
 import { dispatchConfigRoute } from './config/configRouteHandler'
 import { createPresenterHotPathPorts } from './hotPathPorts'
 import { dispatchModelRoute } from './models/modelRouteHandler'
@@ -432,6 +433,12 @@ import type { DeepChatTapeEntryRow } from '@/presenter/sqlitePresenter/tables/de
 import type { SQLitePresenter } from '@/presenter/sqlitePresenter'
 import type { CronJobsService } from '@/presenter/cronJobs'
 import { killTerminal, writeToTerminal } from '@/presenter/configPresenter/acpInitHelper'
+import type { WindowFollowerPresenter } from '@/presenter/windowFollowerPresenter'
+import type { DesktopPermissionService } from '@/windowFollower/desktopPermissionService'
+import {
+  dispatchWindowFollowerRoute,
+  type WindowFollowerRouteRuntime
+} from './windowFollowerRoutes'
 
 const MEMORY_PERSONA_STATES = ['draft', 'active', 'superseded', 'rejected'] as const
 type MemoryPersonaState = (typeof MEMORY_PERSONA_STATES)[number]
@@ -471,6 +478,10 @@ export type MainKernelRouteRuntime = {
   databaseSecurityPresenter: DatabaseSecurityPresenter
   memoryPresenter: MemoryPresenter
   cronJobs: CronJobsService
+  windowFollowerPresenter: WindowFollowerPresenter
+  desktopPermissionService: DesktopPermissionService
+  getAutomaticAdhesion: () => boolean
+  setAutomaticAdhesion: (enabled: boolean) => void
 }
 
 export function formatMemorySourceRecordContent(record: ChatMessageRecord): string {
@@ -743,6 +754,8 @@ export function createMainKernelRouteRuntime(deps: {
   databaseSecurityPresenter: DatabaseSecurityPresenter
   memoryPresenter: MemoryPresenter
   cronJobs: CronJobsService
+  windowFollowerPresenter: WindowFollowerPresenter
+  desktopPermissionService: DesktopPermissionService
 }): MainKernelRouteRuntime {
   const scheduler = createNodeScheduler()
   const hotPathPorts = createPresenterHotPathPorts({
@@ -905,7 +918,13 @@ export function createMainKernelRouteRuntime(deps: {
     pluginPresenter: deps.pluginPresenter,
     databaseSecurityPresenter: deps.databaseSecurityPresenter,
     memoryPresenter: deps.memoryPresenter,
-    cronJobs: deps.cronJobs
+    cronJobs: deps.cronJobs,
+    windowFollowerPresenter: deps.windowFollowerPresenter,
+    desktopPermissionService: deps.desktopPermissionService,
+    getAutomaticAdhesion: () =>
+      deps.configPresenter.getSetting<boolean>('sideai.windowFollower.automaticAdhesion') ?? true,
+    setAutomaticAdhesion: (enabled) =>
+      deps.configPresenter.setSetting('sideai.windowFollower.automaticAdhesion', enabled)
   }
 }
 
@@ -1522,6 +1541,13 @@ export async function dispatchDeepchatRoute(
   if (!hasDeepchatRouteContract(routeName)) {
     throw new Error(`Unknown deepchat route: ${routeName}`)
   }
+
+  const windowFollowerResult = await dispatchWindowFollowerRoute(
+    runtime as WindowFollowerRouteRuntime,
+    routeName,
+    rawInput
+  )
+  if (windowFollowerResult !== undefined) return windowFollowerResult
 
   const configResult = await dispatchConfigRoute(runtime.configPresenter, routeName, rawInput)
   if (configResult !== undefined) {
@@ -2886,7 +2912,11 @@ export async function dispatchDeepchatRoute(
 
     case sessionsCreateRoute.name: {
       const input = sessionsCreateRoute.input.parse(rawInput)
-      const session = await runtime.sessionService.createSession(input, context)
+      const trustedInput = await attachWindowContextToSession(
+        runtime.windowFollowerPresenter,
+        input
+      )
+      const session = await runtime.sessionService.createSession(trustedInput, context)
       return sessionsCreateRoute.output.parse({ session })
     }
 
@@ -2959,9 +2989,13 @@ export async function dispatchDeepchatRoute(
 
     case sessionsQueuePendingInputRoute.name: {
       const input = sessionsQueuePendingInputRoute.input.parse(rawInput)
+      const trustedContent = await attachWindowContextToMessage(
+        runtime.windowFollowerPresenter,
+        input.content
+      )
       const item = await runtime.agentSessionPresenter.queuePendingInput(
         input.sessionId,
-        input.content
+        trustedContent
       )
       return sessionsQueuePendingInputRoute.output.parse({ item })
     }
@@ -4292,8 +4326,12 @@ export async function dispatchDeepchatRoute(
 
     case chatSendMessageRoute.name: {
       const input = chatSendMessageRoute.input.parse(rawInput)
+      const trustedContent = await attachWindowContextToMessage(
+        runtime.windowFollowerPresenter,
+        input.content
+      )
       return chatSendMessageRoute.output.parse(
-        await runtime.chatService.sendMessage(input.sessionId, input.content)
+        await runtime.chatService.sendMessage(input.sessionId, trustedContent)
       )
     }
 

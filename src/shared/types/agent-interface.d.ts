@@ -5,6 +5,7 @@ import type { ToolCallImagePreview } from './core/mcp'
 import type { AgentPlanDisplayItem, AgentPlanTerminalReason } from './agent-plan'
 import type { DeepChatTapeViewManifestRecord } from './tape-view-manifest'
 import type { DeepChatTapeReplayExportOptions, DeepChatTapeReplaySlice } from './tape-replay'
+import type { WindowContextSnapshot } from '../windowFollower'
 
 /**
  * Agent Interface Protocol
@@ -355,6 +356,7 @@ export interface UserMessageContent {
   think: boolean
   activeSkills?: string[]
   inlineItems?: UserMessageInlineItem[]
+  windowContext?: WindowContextSnapshot
 }
 
 export interface LegacyImportStatus {
@@ -393,6 +395,7 @@ export interface SendMessageInput {
   files?: MessageFile[]
   activeSkills?: string[]
   inlineItems?: UserMessageInlineItem[]
+  windowContext?: WindowContextSnapshot
 }
 
 export type PendingSessionInputMode = 'queue' | 'steer'
@@ -907,6 +910,7 @@ export interface CreateSessionInput {
   modelId?: string
   permissionMode?: PermissionMode
   activeSkills?: string[]
+  windowContext?: WindowContextSnapshot
   disabledAgentTools?: string[]
   subagentEnabled?: boolean
   generationSettings?: Partial<SessionGenerationSettings>

@@ -434,6 +434,73 @@
       "second": "秒"
     }
   },
+  "windowFollower": {
+    "toolbar": {
+      "ariaLabel": "贴边面板操作",
+      "expand": "展开工具栏",
+      "collapse": "收起工具栏",
+      "collapsePanel": "折叠为气泡",
+      "pin": "固定面板",
+      "unpin": "取消固定",
+      "detach": "脱吸附",
+      "reattach": "恢复吸附",
+      "resetWidth": "恢复默认宽度",
+      "settings": "面板设置",
+      "hide": "隐藏面板",
+      "quit": "退出 DeepChat"
+    },
+    "bubble": {
+      "expand": "展开贴边面板"
+    },
+    "resize": {
+      "label": "调整贴边面板宽度",
+      "title": "拖动调整宽度"
+    },
+    "session": {
+      "newChat": "新建聊天",
+      "restoreWindow": "恢复大窗口"
+    },
+    "history": {
+      "title": "聊天历史",
+      "close": "关闭聊天历史",
+      "loading": "正在加载会话...",
+      "pinned": "已固定",
+      "emptyTitle": "暂无历史会话",
+      "emptyDescription": "已有 DeepChat 会话会显示在这里。"
+    },
+    "settings": {
+      "ariaLabel": "贴边面板设置",
+      "back": "返回贴边面板",
+      "title": "贴边设置",
+      "behaviorHeading": "吸附与宽度",
+      "automaticAdhesion": "自动贴边",
+      "panelWidth": "面板宽度",
+      "permissionsHeading": "系统权限",
+      "accessibility": "辅助功能",
+      "screenRecording": "屏幕录制",
+      "exclusionsHeading": "排除应用",
+      "excludeCurrentApp": "排除当前应用",
+      "restore": "恢复",
+      "noExcludedApps": "暂无排除应用",
+      "diagnosticsHeading": "诊断",
+      "debugTitle": "WindowFollower 状态",
+      "debugDescription": "查看目标窗口、权限与几何状态",
+      "adhesion": {
+        "paused": "已暂停",
+        "available": "当前可用",
+        "waitingPermissions": "等待系统权限"
+      },
+      "permission": {
+        "granted": "已授权",
+        "missing": "需要授权",
+        "notApplicable": "当前平台不适用",
+        "checking": "正在检测"
+      }
+    },
+    "errors": {
+      "commandFailed": "操作失败：{message}"
+    }
+  },
   "memory": {
     "toolbar": "本轮用到的记忆",
     "status": {

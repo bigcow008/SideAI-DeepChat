@@ -163,6 +163,12 @@ export function startApp(): void {
     })
   }
 
+  app.on('activate', () => {
+    if (!presenter) return
+    presenter.windowFollowerPresenter.returnToNormal(true)
+    focusExistingAppWindow()
+  })
+
   // Initialize lifecycle manager and register core hooks
   const lifecycleManager = new LifecycleManager()
   const startupWorkloadCoordinator = new StartupWorkloadCoordinator()

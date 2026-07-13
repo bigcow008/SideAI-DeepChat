@@ -374,7 +374,27 @@ describe('DeepChatMessageStore', () => {
       })
     })
 
-    it('preserves message-scoped active skills when materializing normalized user content', () => {
+    it('preserves message-scoped metadata when materializing normalized user content', () => {
+      const windowContext = {
+        schemaVersion: 1,
+        trackingState: 'following',
+        source: 'active',
+        freshness: 'live',
+        capturedAt: 1,
+        lastVerifiedAt: 1,
+        app: { stableKey: 'bundleId:code', name: 'Code', processId: 42 },
+        window: {
+          windowId: 7,
+          title: 'PRD.md - SideAI',
+          bounds: { x: 0, y: 0, width: 900, height: 700 }
+        },
+        permissions: {
+          platform: 'macos',
+          accessibility: 'granted',
+          screenRecording: 'granted',
+          checkedAt: 1
+        }
+      }
       sqlitePresenter.deepchatMessagesTable.getBySession.mockReturnValue([
         {
           id: 'm1',
@@ -387,7 +407,8 @@ describe('DeepChatMessageStore', () => {
             links: [],
             search: false,
             think: false,
-            activeSkills: ['algorithmic-art']
+            activeSkills: ['algorithmic-art'],
+            windowContext
           }),
           status: 'sent',
           is_context_edge: 0,
@@ -413,7 +434,8 @@ describe('DeepChatMessageStore', () => {
         links: [],
         search: false,
         think: false,
-        activeSkills: ['algorithmic-art']
+        activeSkills: ['algorithmic-art'],
+        windowContext
       })
     })
 

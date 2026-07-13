@@ -148,6 +148,12 @@ const setup = async () => {
   const sessionClient = {
     ensureAcpDraftSession: vi.fn().mockResolvedValue(null)
   }
+  const modelClient = {
+    getModelConfig: vi.fn().mockResolvedValue({ speechRecognition: false }),
+    getCapabilities: vi.fn().mockResolvedValue({}),
+    onModelConfigChanged: vi.fn(() => () => {}),
+    transcribeAudio: vi.fn()
+  }
 
   vi.doMock('@/stores/ui/project', () => ({
     useProjectStore: () => projectStore
@@ -169,6 +175,9 @@ const setup = async () => {
   }))
   vi.doMock('@api/SessionClient', () => ({
     createSessionClient: vi.fn(() => sessionClient)
+  }))
+  vi.doMock('@api/ModelClient', () => ({
+    createModelClient: vi.fn(() => modelClient)
   }))
   vi.doMock('@/lib/startupDeferred', () => ({
     scheduleStartupDeferredTask: vi.fn((task: () => void | Promise<void>) => {
@@ -233,22 +242,7 @@ const setup = async () => {
         Icon: true,
         ChatInputToolbar: true,
         ChatStatusBar: true,
-        GuidedOnboardingOverlay: defineComponent({
-          name: 'GuidedOnboardingOverlay',
-          props: {
-            visible: {
-              type: Boolean,
-              default: false
-            },
-            primaryLabel: {
-              type: String,
-              default: undefined
-            }
-          },
-          emits: ['primary'],
-          template:
-            '<button v-if="visible && primaryLabel" data-testid="first-chat-guide-primary" type="button" @click="$emit(\'primary\')">primary</button>'
-        })
+        OnBoardingSpotlight: true
       }
     }
   })
@@ -263,5 +257,20 @@ describe('NewThreadPage guided onboarding', () => {
     const { wrapper } = await setup()
 
     expect(wrapper.find('[data-testid="first-chat-guide-primary"]').exists()).toBe(false)
+  })
+
+  it('keeps the real guided overlay within the panel content viewport', async () => {
+    document.documentElement.dataset.windowFollowerSurface = 'panel'
+    document.documentElement.style.setProperty('--window-follower-content-offset-x', '44px')
+
+    const { wrapper } = await setup()
+    const overlay = wrapper.get('[data-testid="guided-onboarding-overlay"]')
+
+    expect(overlay.classes()).toContain('window-follower-onboarding-viewport')
+    expect(overlay.classes()).not.toContain('window-follower-viewport-bound')
+
+    wrapper.unmount()
+    document.documentElement.removeAttribute('data-window-follower-surface')
+    document.documentElement.style.removeProperty('--window-follower-content-offset-x')
   })
 })

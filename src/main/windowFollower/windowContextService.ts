@@ -1,0 +1,218 @@
+import type { WindowContextSnapshot, WindowFollowerSettingsDto } from '@shared/windowFollower'
+import type { DesktopPermissionService } from './desktopPermissionService'
+import { deriveAutomaticAdhesion, readDesktopContextWhenAvailable } from './desktopCapability'
+import type { WindowSnapshot, WindowReadPermissions } from './getWindowsAdapter'
+import {
+  recordLiveTarget,
+  recordTargetMiss,
+  recordTargetUnavailable,
+  retainTargetWhileSelfFocused,
+  type TargetState
+} from './core/targetTracker'
+import { createAppIdentity, isOwnerExcluded, type ExcludedApp } from './core/adhesionExclusions'
+import {
+  excludeCurrentAppWithUpdate,
+  removeExcludedAppWithUpdate
+} from './core/adhesionExclusionFlow'
+
+type WindowContextServiceDependencies = {
+  permissionService: DesktopPermissionService
+  readActiveWindow: (permissions: WindowReadPermissions) => Promise<WindowSnapshot | null>
+  getPreference: () => boolean
+  ownProcessId: number
+  ownAppName: string
+  initialExcludedApps?: ExcludedApp[]
+  persistExcludedApps?: (excludedApps: ExcludedApp[]) => Promise<void>
+  now?: () => number
+}
+
+export type WindowContextRefreshResult = {
+  permissions: WindowContextSnapshot['permissions']
+  canReadWindowContext: boolean
+  automaticAdhesionAvailable: boolean
+  snapshot: WindowContextSnapshot | null
+  targetExcluded: boolean
+  lastError: string | null
+}
+
+const TARGET_GRACE_MS = 1_000
+
+function errorText(error: unknown) {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function deepFreeze<T>(value: T): T {
+  if (typeof value !== 'object' || value === null || Object.isFrozen(value)) return value
+  for (const nested of Object.values(value)) deepFreeze(nested)
+  return Object.freeze(value)
+}
+
+export class WindowContextService {
+  private targetState: TargetState<WindowSnapshot> = {
+    target: null,
+    freshness: 'unavailable',
+    capturedAt: null,
+    error: null
+  }
+  private excludedApps: ExcludedApp[] = []
+  private readonly now: () => number
+
+  constructor(private readonly dependencies: WindowContextServiceDependencies) {
+    this.now = dependencies.now ?? Date.now
+    this.excludedApps = [...(dependencies.initialExcludedApps ?? [])]
+  }
+
+  setExcludedApps(excludedApps: ExcludedApp[]) {
+    this.excludedApps = [...excludedApps]
+  }
+
+  getAdhesionSettings(): WindowFollowerSettingsDto {
+    return {
+      automaticAdhesion: this.dependencies.getPreference(),
+      currentApp: createAppIdentity(this.targetState.target?.owner),
+      excludedApps: this.excludedApps.map((app) => ({ ...app }))
+    }
+  }
+
+  async excludeCurrentApp(): Promise<WindowFollowerSettingsDto> {
+    await excludeCurrentAppWithUpdate({
+      owner: this.targetState.target?.owner,
+      getExcludedApps: () => this.excludedApps,
+      setExcludedApps: (excludedApps) => this.setExcludedApps(excludedApps),
+      persistExcludedApps: (excludedApps) => this.persistExcludedApps(excludedApps),
+      updatePanelPosition: () => this.refresh(true).then(() => undefined)
+    })
+    return this.getAdhesionSettings()
+  }
+
+  async removeExcludedApp(id: string): Promise<WindowFollowerSettingsDto> {
+    await removeExcludedAppWithUpdate({
+      id,
+      getExcludedApps: () => this.excludedApps,
+      setExcludedApps: (excludedApps) => this.setExcludedApps(excludedApps),
+      persistExcludedApps: (excludedApps) => this.persistExcludedApps(excludedApps),
+      updatePanelPosition: () => this.refresh(true).then(() => undefined)
+    })
+    return this.getAdhesionSettings()
+  }
+
+  async refresh(forcePermissions = false): Promise<WindowContextRefreshResult> {
+    let capability
+    try {
+      capability = await readDesktopContextWhenAvailable({
+        getPermissionSample: () => this.dependencies.permissionService.sample(forcePermissions),
+        getPreference: this.dependencies.getPreference,
+        read: (permissions) =>
+          this.dependencies.readActiveWindow({
+            accessibilityPermission: permissions.accessibility === 'granted',
+            screenRecordingPermission: permissions.screenRecording === 'granted'
+          })
+      })
+    } catch (error) {
+      const permissions = this.dependencies.permissionService.sample(forcePermissions).value
+      const permissionCapability = deriveAutomaticAdhesion(
+        permissions,
+        this.dependencies.getPreference()
+      )
+      this.targetState = recordTargetMiss(
+        this.targetState,
+        this.now(),
+        errorText(error),
+        TARGET_GRACE_MS
+      )
+      return {
+        permissions,
+        ...permissionCapability,
+        snapshot: this.buildSnapshot(permissions),
+        targetExcluded: false,
+        lastError: this.targetState.error
+      }
+    }
+
+    if (!capability.canReadWindowContext) {
+      this.targetState = recordTargetUnavailable(this.targetState, '窗口读取权限不足')
+      return {
+        ...capability,
+        snapshot: null,
+        targetExcluded: false,
+        lastError: this.targetState.error
+      }
+    }
+
+    const current = capability.context
+    let targetExcluded = false
+    if (!current) {
+      this.targetState = recordTargetMiss(
+        this.targetState,
+        this.now(),
+        '未读取到活跃窗口',
+        TARGET_GRACE_MS
+      )
+    } else if (this.isOwnWindow(current)) {
+      this.targetState = retainTargetWhileSelfFocused(this.targetState)
+    } else if (isOwnerExcluded(current.owner, this.excludedApps)) {
+      targetExcluded = true
+      this.targetState = recordTargetUnavailable(this.targetState, '目标应用已排除')
+    } else {
+      this.targetState = recordLiveTarget(current, this.now())
+    }
+
+    return {
+      ...capability,
+      snapshot: this.buildSnapshot(capability.permissions),
+      targetExcluded,
+      lastError: this.targetState.error
+    }
+  }
+
+  private isOwnWindow(windowInfo: WindowSnapshot) {
+    return (
+      windowInfo.owner.processId === this.dependencies.ownProcessId ||
+      windowInfo.owner.name.toLowerCase().includes(this.dependencies.ownAppName.toLowerCase())
+    )
+  }
+
+  private persistExcludedApps(excludedApps: ExcludedApp[]) {
+    return this.dependencies.persistExcludedApps?.(excludedApps) ?? Promise.resolve()
+  }
+
+  private buildSnapshot(
+    permissions: WindowContextSnapshot['permissions']
+  ): WindowContextSnapshot | null {
+    const target = this.targetState.target
+    const capturedAt = this.targetState.capturedAt
+    if (!target || capturedAt === null) return null
+
+    const identity = createAppIdentity(target.owner)
+    if (!identity) return null
+
+    const source =
+      this.targetState.freshness === 'live'
+        ? 'active'
+        : this.targetState.freshness === 'retained'
+          ? 'retained-while-sideai-focused'
+          : 'last-known'
+
+    return deepFreeze({
+      schemaVersion: 1,
+      trackingState: 'following',
+      source,
+      freshness: this.targetState.freshness,
+      capturedAt,
+      lastVerifiedAt: capturedAt,
+      app: {
+        stableKey: identity.id,
+        name: identity.name,
+        bundleId: identity.bundleId,
+        path: identity.path,
+        processId: target.owner.processId
+      },
+      window: {
+        windowId: target.id,
+        title: target.title ?? '',
+        bounds: { ...target.bounds }
+      },
+      permissions
+    })
+  }
+}

@@ -1353,7 +1353,10 @@ export class AgentRuntimePresenter implements IAgentImplementation {
         ...(normalizedInput.activeSkills?.length
           ? { activeSkills: normalizedInput.activeSkills }
           : {}),
-        ...(normalizedInput.inlineItems?.length ? { inlineItems: normalizedInput.inlineItems } : {})
+        ...(normalizedInput.inlineItems?.length
+          ? { inlineItems: normalizedInput.inlineItems }
+          : {}),
+        ...(normalizedInput.windowContext ? { windowContext: normalizedInput.windowContext } : {})
       }
 
       let compactionIntent: CompactionIntent | null = null
@@ -6142,7 +6145,8 @@ export class AgentRuntimePresenter implements IAgentImplementation {
         text,
         files,
         ...(activeSkills.length > 0 ? { activeSkills } : {}),
-        ...(inlineItems.length > 0 ? { inlineItems } : {})
+        ...(inlineItems.length > 0 ? { inlineItems } : {}),
+        ...(parsed.windowContext ? { windowContext: parsed.windowContext } : {})
       }
     } catch {
       return { text: content, files: [] }
@@ -6168,7 +6172,8 @@ export class AgentRuntimePresenter implements IAgentImplementation {
       text,
       files,
       ...(activeSkills.length > 0 ? { activeSkills } : {}),
-      ...(inlineItems.length > 0 ? { inlineItems } : {})
+      ...(inlineItems.length > 0 ? { inlineItems } : {}),
+      ...(input.windowContext ? { windowContext: input.windowContext } : {})
     }
   }
 
